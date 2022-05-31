@@ -10,7 +10,7 @@ export type LiveJournalSelectType =
      * Note: It is the server that determines the number of entries returned in this entry retrieval mode.
      * So, make sure you use the Syncitems protocol mode to avoid incomplete retrieval. */
     "syncitems" |
-    /** Retrieve required entries with ID’s specified in the itemids array (see below); the number of retrieved entries is limited to 100 */
+    /** Retrieve required entries with ID's specified in the itemids array (see below); the number of retrieved entries is limited to 100 */
     "multiple" |
     /** Retrieve entries created before the date specified in the before key (see below) */
     "before";

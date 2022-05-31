@@ -1,0 +1,137 @@
+import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import path from "path";
+import { LiveJournalApi } from "./LiveJournalApi";
+import { LiveJournalFriendGroupInfo, LiveJournalFriend } from "./LiveJournalFriend";
+import https from "https";
+import { LiveJournalUserProfile } from "./LiveJournalUserProfile";
+
+//const credentials 
+
+const credentials = JSON.parse(readFileSync("credentials.json").toString());
+const username = credentials.username;
+const password = credentials.password;
+
+const OUT_DIR = "./output/";
+
+const FRIENDS_FILE = path.join(OUT_DIR, 'friends.json');
+const FRIENDOF_FILE = path.join(OUT_DIR, 'friendof.json');
+const FRIENDGROUPS_FILE = path.join(OUT_DIR, 'friendgroups.json');
+const USERPROFILE_FILE = path.join(OUT_DIR, 'userprofile.json');
+
+
+const ljApi = new LiveJournalApi(username, password, "clear");
+
+
+function parseDefaultIconUrl(url: string, username: string): string {
+    const RegExp_Icon_Url = /^https?:\/\/l-userpic.livejournal.com\/\d+\/(\d+)$/;
+    const regExpResult = RegExp_Icon_Url.exec(url);
+    if (regExpResult) {
+        return `${regExpResult[1]}_${username}.png`;
+    }
+    throw new Error(`Invalid URL: ${url}`);
+}
+
+async function main() {
+
+    mkdirSync(OUT_DIR, { recursive: true });
+
+    const friends = await getFriends();
+    const friendOfs = await getFriendOf();
+    const friendGroups = await getFriendGroups();
+    const userProfile = await getUserProfile();
+
+
+    const usericonDir = path.join(OUT_DIR, "usericons");
+    mkdirSync(usericonDir, { recursive: true });
+
+    for (let friend of friends) {
+        if (friend.defaultpicurl) {
+            try {
+                let file = await getFile(path.join(usericonDir, parseDefaultIconUrl(friend.defaultpicurl, friend.user)), friend.defaultpicurl);
+                console.log(`Downloaded ${friend.defaultpicurl} to ${file}`);
+            } catch (err: any) {
+                console.log(err.message);
+            }
+        }
+    }
+
+    //
+}
+
+async function getFile(target: string, url: string, furce: boolean = false): Promise<string> {
+    if (existsSync(target)) {
+        console.log(`Skipping ${url}`);
+        return target;
+    }
+    return new Promise<string>((resolve, reject) => {
+        const file = createWriteStream(target);
+        const request = https.get(url, function (response) {
+            response.pipe(file);
+
+            // after download completed close filestream
+            file.on("finish", () => {
+                file.close();
+                resolve(target);
+            });
+
+            file.on("error", (err) => reject(err));
+        });
+    });
+}
+
+
+async function getFriends(): Promise<LiveJournalFriend[]> {
+    if (existsSync(FRIENDS_FILE)) {
+        console.log(`Reading friends from ${FRIENDS_FILE} `);
+        return JSON.parse(readFileSync(FRIENDS_FILE).toString()) as LiveJournalFriend[];
+    } else {
+        console.log("Importing friends");
+        const friends = (await ljApi.getFriends()).friends;
+        writeFileSync(FRIENDS_FILE, JSON.stringify(friends, null, 4));
+        return friends;
+    }
+}
+
+async function getFriendOf(): Promise<LiveJournalFriend[]> {
+    if (existsSync(FRIENDOF_FILE)) {
+        console.log(`Reading friendof from ${FRIENDOF_FILE} `);
+        return JSON.parse(readFileSync(FRIENDOF_FILE).toString()) as LiveJournalFriend[];
+    } else {
+        console.log("Importing friendof");
+        const friendofs: LiveJournalFriend[] = (await ljApi.getFriends({ includefriendof: true })).friendofs;
+        writeFileSync(FRIENDOF_FILE, JSON.stringify(friendofs, null, 4));
+        return friendofs;
+    }
+}
+
+async function getFriendGroups(): Promise<LiveJournalFriendGroupInfo[]> {
+    if (existsSync(FRIENDGROUPS_FILE)) {
+        console.log(`Reading friend groups from ${FRIENDGROUPS_FILE} `);
+        return JSON.parse(readFileSync(FRIENDGROUPS_FILE).toString()) as LiveJournalFriendGroupInfo[];
+    } else {
+        console.log("Importing friend groups");
+        const friendgroups: LiveJournalFriendGroupInfo[] = (await ljApi.getFriends({ includegroups: true })).friendgroups;
+        writeFileSync(FRIENDGROUPS_FILE, JSON.stringify(friendgroups, null, 4));
+        return friendgroups;
+    }
+}
+
+async function getUserProfile(): Promise<LiveJournalUserProfile> {
+    if (existsSync(USERPROFILE_FILE)) {
+        console.log(`Reading user profile from ${USERPROFILE_FILE} `);
+        return JSON.parse(readFileSync(USERPROFILE_FILE).toString()) as LiveJournalUserProfile;
+    } else {
+        console.log("Importing friend groups");
+        const userprofile: LiveJournalUserProfile = await ljApi.getUserProfile({
+            getcaps: 1,
+            getmenus: 1,
+            getmoods: 1,
+            getpickws: 1,
+            getpickwurls: 1
+        });
+        writeFileSync(USERPROFILE_FILE, JSON.stringify(userprofile, null, 4));
+        return userprofile;
+    }
+}
+
+main();
