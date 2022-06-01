@@ -1,7 +1,7 @@
 {
-  "name": "ljdump",
+  "name": "livejournal-api-ts",
   "version": "1.0.0",
-  "description": "LiveJournal data dump tool",
+  "description": "LiveJournal XML-RPC API client",
   "main": "dist/app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

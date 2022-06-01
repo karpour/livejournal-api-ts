@@ -4,8 +4,9 @@ import { LiveJournalApi } from "./LiveJournalApi";
 import { LiveJournalFriendGroupInfo, LiveJournalFriend } from "./LiveJournalFriend";
 import https from "https";
 import { LiveJournalUserProfile } from "./LiveJournalUserProfile";
+import { LiveJournalEvent } from "./LiveJournalEvent";
 
-//const credentials 
+// This is very much a WIP
 
 const credentials = JSON.parse(readFileSync("credentials.json").toString());
 const username = credentials.username;
@@ -17,6 +18,7 @@ const FRIENDS_FILE = path.join(OUT_DIR, 'friends.json');
 const FRIENDOF_FILE = path.join(OUT_DIR, 'friendof.json');
 const FRIENDGROUPS_FILE = path.join(OUT_DIR, 'friendgroups.json');
 const USERPROFILE_FILE = path.join(OUT_DIR, 'userprofile.json');
+const EVENT_FILE = path.join(OUT_DIR, 'events.json');
 
 
 const ljApi = new LiveJournalApi(username, password, "clear");
@@ -39,6 +41,7 @@ async function main() {
     const friendOfs = await getFriendOf();
     const friendGroups = await getFriendGroups();
     const userProfile = await getUserProfile();
+    const events = await getEvents();
 
 
     const usericonDir = path.join(OUT_DIR, "usericons");
@@ -56,6 +59,18 @@ async function main() {
     }
 
     //
+}
+
+async function getEvents(): Promise<LiveJournalEvent[]> {
+    if (existsSync(EVENT_FILE)) {
+        console.log(`Reading events from ${EVENT_FILE} `);
+        return JSON.parse(readFileSync(EVENT_FILE).toString()) as LiveJournalEvent[];
+    } else {
+        console.log("Importing friends");
+        const events = (await ljApi.getEvents({ selecttype: "lastn", usejournal: "karpour" })).events;
+        writeFileSync(EVENT_FILE, JSON.stringify(events, null, 4));
+        return events;
+    }
 }
 
 async function getFile(target: string, url: string, furce: boolean = false): Promise<string> {
