@@ -20,6 +20,13 @@ import { LiveJournalSessionGenerateResponse } from "./LiveJournalSessionGenerate
 import { getIconsFromHTML } from "./getIconsFromHTML";
 import { LiveJournalIconInfo } from "./LiveJournalIconInfo";
 import { LiveJournalGetUserPicsResponse } from "./LiveJournalGetUserPicsResponse";
+import { LiveJournalCheckFriendsOptions } from "./LiveJournalCheckFriendsOptions";
+import { LiveJournalCheckFriendsResponse } from "./LiveJournalCheckFriendsResponse";
+import { LiveJournalGetChallengeResponse } from "./LiveJournalGetChallengeResponse";
+import { LiveJournalFriendGroup } from "./LiveJournalFriendGroup";
+import { convertGetFriendGroupsResponse, LiveJournalGetFriendGroupsResponse } from "./LiveJournalGetFriendGroupsResponse";
+import { LiveJournalUpdateCommentsOptions } from "./LiveJournalUpdateCommentsOptions";
+import { LiveJournalUpdateCommentsResponse } from "./LiveJournalUpdateCommentsResponse";
 
 const ljXmlRpc = new XmlRpcClient("https://www.livejournal.com/interface/xmlrpc");
 
@@ -104,10 +111,24 @@ export class LiveJournalApi {
 
     // TODO addcomment
     // public addcomment(params: any): Promise<any> { return this.methodCall('addcomment'); }
-    // TODO checkfriends
-    // public checkfriends(params: any): Promise<any> { return this.methodCall('checkfriends'); }
-    // TODO checksession
-    // public checksession(params: any): Promise<any> { return this.methodCall('checksession'); }
+
+    /**
+     * 
+     * @param params 
+     * @returns 
+     */
+    public checkFriends(params: LiveJournalCheckFriendsOptions): Promise<LiveJournalCheckFriendsResponse> {
+        return this.methodCall('checkfriends');
+    }
+
+    /**
+     * 
+     * @returns 
+     */
+    public checksession(): Promise<LiveJournalCheckFriendsResponse> {
+        return this.methodCall('checksession');
+    }
+
     // TODO consolecommand
     // public consolecommand(params: any): Promise<any> { return this.methodCall('consolecommand'); }
     // TODO createpoll
@@ -140,8 +161,13 @@ export class LiveJournalApi {
         );
     };
 
-    // TODO getchallenge
-    // public getchallenge(params: any): Promise<any> { return this.methodCall('getchallenge'); }
+    /**
+     * Note: The validity of a generated challenge value is limited to 60 seconds!
+     * @returns 
+     */
+    public getChallenge(): Promise<LiveJournalGetChallengeResponse> {
+        return this.methodCall('getchallenge');
+    }
 
     /**
      * Get comments for an item (undocumented API endpoint)
@@ -156,8 +182,14 @@ export class LiveJournalApi {
         });
     }
 
-    // TODO getdaycounts
-    // public getdaycounts(params: any): Promise<any> { return this.methodCall('getdaycounts'); }
+    /**
+     * This function returns the number of LJ entries per day
+     * @param usejournal Name of the journal for which counts are being requested and retrieved. By default, it returns values for the current user
+     * @returns number of LJ entries per day
+     */
+    public getdaycounts(usejournal?: string): Promise<any> {
+        return this.methodCall('getdaycounts', usejournal ? { usejournal: usejournal } : {});
+    }
 
     /**
      * Get Events
@@ -175,8 +207,16 @@ export class LiveJournalApi {
         });
     };
 
-    // TODO getfriendgroups
-    // public getfriendgroups(params: any): Promise<any> { return this.methodCall('getfriendgroups'); }
+    /**
+     * Get list of user-defined Friends groups
+     * @returns 
+     */
+    public getfriendgroups(): Promise<LiveJournalFriendGroup[]> {
+        return this.methodCall('getfriendgroups').then(
+            (response: LiveJournalGetFriendGroupsResponse) => {
+                return convertGetFriendGroupsResponse(response).friendgroups;
+            });
+    }
 
     /**
      * Get list of friends
@@ -276,10 +316,19 @@ export class LiveJournalApi {
     // public syncitems(params: any): Promise<any> { return this.methodCall('syncitems'); }
     // TODO unregisterpush
     // public unregisterpush(params: any): Promise<any> { return this.methodCall('unregisterpush'); }
-    // TODO updatecomments
-    // public updatecomments(params: any): Promise<any> { return this.methodCall('updatecomments'); }
+
+    // TODO test updateComments
+    /**
+     * 
+     * @param params 
+     * @returns 
+     */
+    public updateComments(params: LiveJournalUpdateCommentsOptions): Promise<LiveJournalUpdateCommentsResponse> {
+        return this.methodCall('updatecomments', params);
+    }
+
     // TODO votepoll
-    // public votepoll(params: any): Promise<any> { return this.methodCall('votepoll'); }
+    // public votepoll(params: LiveJournalUpdateCommentsOptions): Promise<any> { return this.methodCall('votepoll'); }
 
     /**
      * Get icons for a specific user.
@@ -304,3 +353,4 @@ export class LiveJournalApi {
 function addDays(date: Date, days: number): Date {
     return new Date(date.valueOf() + (days * 86400000));
 };
+

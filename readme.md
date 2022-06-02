@@ -28,9 +28,11 @@ ljApi.getUserProfile({
 
 ## Implemented methods
 
+Currently no methods are implemented that write to the journal since this is mainly meant for backup
+
 - [ ] `addcomment`
-- [ ] `checkfriends`
-- [ ] `checksession`
+- [x] `checkfriends`
+- [x] `checksession`
 - [ ] `consolecommand`
 - [ ] `createpoll`
 - [ ] `createrepost`
@@ -42,11 +44,11 @@ ljApi.getUserProfile({
 - [ ] `editfriends`
 - [ ] `editpoll`
 - [x] `friendof`
-- [ ] `getchallenge`
+- [x] `getchallenge`
 - [x] `getcomments`
-- [ ] `getdaycounts`
+- [x] `getdaycounts`
 - [x] `getevents`
-- [ ] `getfriendgroups`
+- [x] `getfriendgroups`
 - [x] `getfriends`
 - [x] `getfriendspage`
 - [ ] `getinbox`
@@ -67,5 +69,5 @@ ljApi.getUserProfile({
 - [ ] `setmessageread`
 - [ ] `syncitems`
 - [ ] `unregisterpush`
-- [ ] `updatecomments`
+- [x] `updatecomments`
 - [ ] `votepoll`
