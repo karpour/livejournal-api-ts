@@ -33,4 +33,30 @@ export type LiveJournalCommentRaw = {
     is_loaded: number,
     /** Unix-time of reply posting */
     datepostunix: number,
-}
+};
+
+export type LiveJournalC = {
+    /** Reply subject  */
+    subject: string;
+    /** Reply author ID  */
+    posterid: number;
+    /** Reply status. Available options are: 
+     * F for frozen
+     * S for secure
+     * A for active (not frozen, secure or deleted)
+     * D for deleted 
+     */
+    state: string;
+    /** Reply internal identifier */
+    jtalkid: number;
+    /** Internal identifier of a parent reply */
+    parenttalkid: number;
+    /** Name of a reply author */
+    postername: string;
+    /** Reply text */
+    text: string;
+    /** Reserved for future use; currently set t“L”: */
+    nodetype: string;
+    /** Unix-time of reply posting */
+    datepostunix: string;
+};

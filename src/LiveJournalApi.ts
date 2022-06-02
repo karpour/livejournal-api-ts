@@ -27,6 +27,9 @@ import { LiveJournalFriendGroup } from "./LiveJournalFriendGroup";
 import { convertGetFriendGroupsResponse, LiveJournalGetFriendGroupsResponse } from "./LiveJournalGetFriendGroupsResponse";
 import { LiveJournalUpdateCommentsOptions } from "./LiveJournalUpdateCommentsOptions";
 import { LiveJournalUpdateCommentsResponse } from "./LiveJournalUpdateCommentsResponse";
+import { LiveJournalGetInboxResponse, LiveJournalGetInboxResponseExtended, LiveJournalGetInboxResponseRegular } from "./LiveJournalGetInboxResponse";
+import { LiveJournalGetInboxOptions, LiveJournalGetInboxOptionsExtended, LiveJournalGetInboxOptionsRegular } from "./LiveJournalGetInboxOptions";
+import { LiveJournalGetRecentCommentsOptionsRaw } from "./LiveJournalGetRecentCommentsOptions";
 
 const ljXmlRpc = new XmlRpcClient("https://www.livejournal.com/interface/xmlrpc");
 
@@ -246,14 +249,31 @@ export class LiveJournalApi {
         });
     };
 
-    // TODO getinbox
-    // public getinbox(params: any): Promise<any> { return this.methodCall('getinbox'); }
+    /**
+     * Get incoming private messages
+     * @param params 
+     * @returns 
+     */
+    public getInbox(params: LiveJournalGetInboxOptionsExtended): Promise<LiveJournalGetInboxResponseExtended>;
+    public getInbox(params: LiveJournalGetInboxOptionsRegular): Promise<LiveJournalGetInboxResponseRegular>;
+    public getInbox(params: LiveJournalGetInboxOptions): Promise<LiveJournalGetInboxResponse> {
+        return this.methodCall('getinbox');
+    }
+
     // TODO getpoll
     // public getpoll(params: any): Promise<any> { return this.methodCall('getpoll'); }
     // TODO getpushlist
     // public getpushlist(params: any): Promise<any> { return this.methodCall('getpushlist'); }
-    // TODO getrecentcomments
-    // public getrecentcomments(params: any): Promise<any> { return this.methodCall('getrecentcomments'); }
+
+    /**
+     * 
+     * @param params 
+     * @returns 
+     */
+    public getrecentcomments(params: LiveJournalGetRecentCommentsOptionsRaw = {}): Promise<any> {
+        return this.methodCall('getrecentcomments');
+    }
+
     // TODO getrepoststatus
     // public getrepoststatus(params: any): Promise<any> { return this.methodCall('getrepoststatus'); }
 
