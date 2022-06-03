@@ -28,7 +28,7 @@ ljApi.getUserProfile({
 
 ## Implemented methods
 
-Currently no methods are implemented that write to the journal since this is mainly meant for backup
+Currently no create, update or delete methods are implemented, only methods that read from the journal.
 
 - [ ] `addcomment`
 - [x] `checkfriends`
@@ -51,10 +51,10 @@ Currently no methods are implemented that write to the journal since this is mai
 - [x] `getfriendgroups`
 - [x] `getfriends`
 - [x] `getfriendspage`
-- [ ] `getinbox`
+- [x] `getinbox`
 - [ ] `getpoll`
 - [ ] `getpushlist`
-- [ ] `getrecentcomments`
+- [x] `getrecentcomments`
 - [ ] `getrepoststatus`
 - [x] `getuserpics`
 - [x] `getusertags`

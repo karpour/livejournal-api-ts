@@ -30,6 +30,8 @@ import { LiveJournalUpdateCommentsResponse } from "./LiveJournalUpdateCommentsRe
 import { LiveJournalGetInboxResponse, LiveJournalGetInboxResponseExtended, LiveJournalGetInboxResponseRegular } from "./LiveJournalGetInboxResponse";
 import { LiveJournalGetInboxOptions, LiveJournalGetInboxOptionsExtended, LiveJournalGetInboxOptionsRegular } from "./LiveJournalGetInboxOptions";
 import { LiveJournalGetRecentCommentsOptionsRaw } from "./LiveJournalGetRecentCommentsOptions";
+import { LiveJournalGetRecentCommentsResponse } from "./LiveJournalGetRecentCommentsResponse";
+import { convertLiveJournalRecentComment, LiveJournalComment } from "./LiveJournalComment";
 
 const ljXmlRpc = new XmlRpcClient("https://www.livejournal.com/interface/xmlrpc");
 
@@ -78,7 +80,7 @@ const LIVEJOURNAL_API_METHODS = [
 ] as const;
 export type LiveJournalApiMethod = typeof LIVEJOURNAL_API_METHODS[number];
 
-export class LiveJournalApi {
+export default class LiveJournalApi {
     private authOptions: LiveJournalApiAuthOptions;
     public constructor(user: string, password: string, authMethod: "clear" /*| "challenge" | "cookie" */ = "clear", cookieFile?: string) {
         this.authOptions = {
@@ -270,8 +272,10 @@ export class LiveJournalApi {
      * @param params 
      * @returns 
      */
-    public getrecentcomments(params: LiveJournalGetRecentCommentsOptionsRaw = {}): Promise<any> {
-        return this.methodCall('getrecentcomments');
+    public getRecentComments(params: LiveJournalGetRecentCommentsOptionsRaw = {}): Promise<LiveJournalComment[]> {
+        return this.methodCall('getrecentcomments').then(
+            (response: LiveJournalGetRecentCommentsResponse) => response.comments.map(convertLiveJournalRecentComment)
+        );
     }
 
     // TODO getrepoststatus

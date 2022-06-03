@@ -1,6 +1,6 @@
 import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
-import { LiveJournalApi } from "./LiveJournalApi";
+import LiveJournalApi from "./LiveJournalApi";
 import { LiveJournalFriendGroupInfo, LiveJournalFriend } from "./LiveJournalFriend";
 import https from "https";
 import { LiveJournalUserProfile } from "./LiveJournalUserProfile";
