@@ -45,9 +45,11 @@ export type LiveJournalEventExtra = {
     can_comment: boolean,
     /** Actual time of the last entry change on the server (server time) */
     logtime: Date,
+    /** Entry body */
+    event: string,
 };
 
-export type LiveJournalEvent = Omit<LiveJournalEventPropsRaw, keyof LiveJournalEventExtra> & LiveJournalEventExtra;
+export type LiveJournalEvent = Omit<LiveJournalEventRaw, keyof LiveJournalEventExtra> & LiveJournalEventExtra;
 
 export type LiveJournalEventPropsRaw = {
     /** Admin Content Flag Internal flag describing entry properties. Set by an administrator */
@@ -183,5 +185,6 @@ export function convertLiveJournalEventRaw(event: LiveJournalEventRaw): LiveJour
         eventime: convertLiveJournalDateString(event.eventtime),
         props: convertLiveJournalEventProps(event.props),
         logtime: convertLiveJournalDateString(event.logtime),
+        event: event.event instanceof Buffer ? event.event.toString() : event.event
     });
 }

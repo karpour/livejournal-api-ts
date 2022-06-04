@@ -5,6 +5,8 @@ import { LiveJournalFriendGroupInfo, LiveJournalFriend } from "./LiveJournalFrie
 import https from "https";
 import { LiveJournalUserProfile } from "./LiveJournalUserProfile";
 import { LiveJournalEvent } from "./LiveJournalEvent";
+import { decode } from "html-entities";
+import { NodeHtmlMarkdown, NodeHtmlMarkdownOptions } from 'node-html-markdown';
 
 // This is very much a WIP
 
@@ -43,11 +45,22 @@ async function main() {
     const userProfile = await getUserProfile();
     const events = await getEvents();
 
+    const ev = events[0];
+    console.log(ev.event);
+    //console.log(decode(ev.event));
+    console.log(NodeHtmlMarkdown.translate(
+        /* html */ ev.event,
+        /* options (optional) */ {},
+        /* customTranslators (optional) */ undefined,
+        /* customCodeBlockTranslators (optional) */ undefined
+    ));
+
+
 
     const usericonDir = path.join(OUT_DIR, "usericons");
     mkdirSync(usericonDir, { recursive: true });
 
-    for (let friend of friends) {
+    /*for (let friend of friends) {
         if (friend.defaultpicurl) {
             try {
                 let file = await getFile(path.join(usericonDir, parseDefaultIconUrl(friend.defaultpicurl, friend.user)), friend.defaultpicurl);
@@ -56,7 +69,7 @@ async function main() {
                 console.log(err.message);
             }
         }
-    }
+    }*/
 
     //
 }
@@ -67,13 +80,17 @@ async function getEvents(): Promise<LiveJournalEvent[]> {
         return JSON.parse(readFileSync(EVENT_FILE).toString()) as LiveJournalEvent[];
     } else {
         console.log("Importing friends");
-        const events = (await ljApi.getEvents({ selecttype: "lastn", usejournal: "karpour" })).events;
+        const events = (await ljApi.getEvents({
+            selecttype: "lastn",
+            usejournal: "karpour",
+            lineendings: "unix"
+        })).events;
         writeFileSync(EVENT_FILE, JSON.stringify(events, null, 4));
         return events;
     }
 }
 
-async function getFile(target: string, url: string, furce: boolean = false): Promise<string> {
+async function getFile(target: string, url: string, force: boolean = false): Promise<string> {
     if (existsSync(target)) {
         console.log(`Skipping ${url}`);
         return target;
@@ -136,7 +153,7 @@ async function getUserProfile(): Promise<LiveJournalUserProfile> {
         console.log(`Reading user profile from ${USERPROFILE_FILE} `);
         return JSON.parse(readFileSync(USERPROFILE_FILE).toString()) as LiveJournalUserProfile;
     } else {
-        console.log("Importing friend groups");
+        console.log("Importing user profile");
         const userprofile: LiveJournalUserProfile = await ljApi.getUserProfile({
             getcaps: 1,
             getmenus: 1,

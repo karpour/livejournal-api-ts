@@ -1,5 +1,14 @@
-import { CommentNode } from "node-html-parser";
 import { LiveJournalDateString } from "./LiveJournalDateString";
+
+/** 
+ * Reply status. Available options are:
+ * 
+ *   F for frozen
+ *   S for secure
+ *   A for active (not frozen, secure or deleted)
+ *   D for deleted 
+ */
+export type LiveJournalCommentState = 'F' | 'S' | 'A' | 'D';
 
 export type LiveJournalCommentRaw = {
     /** Internal identifier of a parent reply */
@@ -10,12 +19,13 @@ export type LiveJournalCommentRaw = {
     posterid: number,
     /** 
      * Reply status. Available options are:
-     *   F for frozen
+     * 
+     *   F for frozen 
      *   S for secure
      *   A for active (not frozen, secure or deleted)
      *   D for deleted 
      */
-    state: 'F' | 'S' | 'A' | 'D',
+    state: LiveJournalCommentState,
     /** Reply text */
     body: string,
     /**  */
@@ -48,7 +58,7 @@ export type LiveJournalRecentCommentRaw = {
      * A for active (not frozen, secure or deleted)
      * D for deleted 
      */
-    state: 'F' | 'S' | 'A' | 'D';
+    state: LiveJournalCommentState;
     /** Reply internal identifier */
     jtalkid: number;
     /** Internal identifier of a parent reply */
@@ -87,7 +97,7 @@ export type LiveJournalComment = {
      *   A for active (not frozen, secure or deleted)
      *   D for deleted 
      */
-    state: 'F' | 'S' | 'A' | 'D',
+    state: LiveJournalCommentState,
     /** Reply text */
     text: string,
     /**  */

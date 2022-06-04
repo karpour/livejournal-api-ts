@@ -71,3 +71,9 @@ Currently no create, update or delete methods are implemented, only methods that
 - [ ] `unregisterpush`
 - [x] `updatecomments`
 - [ ] `votepoll`
+
+## To Do
+
+- Handle lj user elements
+- Handle lj polls
+- Handle line breaks properly when converting to markdown

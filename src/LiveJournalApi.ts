@@ -24,7 +24,7 @@ import { LiveJournalCheckFriendsOptions } from "./LiveJournalCheckFriendsOptions
 import { LiveJournalCheckFriendsResponse } from "./LiveJournalCheckFriendsResponse";
 import { LiveJournalGetChallengeResponse } from "./LiveJournalGetChallengeResponse";
 import { LiveJournalFriendGroup } from "./LiveJournalFriendGroup";
-import { convertGetFriendGroupsResponse, LiveJournalGetFriendGroupsResponse } from "./LiveJournalGetFriendGroupsResponse";
+import { convertGetFriendGroupsResponse, LiveJournalGetFriendGroupsResponse, LiveJournalGetFriendGroupsResponseRaw } from "./LiveJournalGetFriendGroupsResponse";
 import { LiveJournalUpdateCommentsOptions } from "./LiveJournalUpdateCommentsOptions";
 import { LiveJournalUpdateCommentsResponse } from "./LiveJournalUpdateCommentsResponse";
 import { LiveJournalGetInboxResponse, LiveJournalGetInboxResponseExtended, LiveJournalGetInboxResponseRegular } from "./LiveJournalGetInboxResponse";
@@ -218,7 +218,7 @@ export default class LiveJournalApi {
      */
     public getfriendgroups(): Promise<LiveJournalFriendGroup[]> {
         return this.methodCall('getfriendgroups').then(
-            (response: LiveJournalGetFriendGroupsResponse) => {
+            (response: LiveJournalGetFriendGroupsResponseRaw) => {
                 return convertGetFriendGroupsResponse(response).friendgroups;
             });
     }

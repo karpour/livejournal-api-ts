@@ -14,7 +14,7 @@ export type LiveJournalFriendGroupRaw = {
 
 export type LiveJournalFriendGroupExtra = {
     /** Indicates whether a group is public (true) or private (false) */
-    public: LiveJournalApiBool;
+    public: true;
 };
 
 
