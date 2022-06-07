@@ -7,7 +7,7 @@ The API is based on the [LiveJournal XML-RPC Specification](https://wh.lj.ru/s2/
 ## Example usage
 
 ```typescript
-import { LiveJournalApi } from "./LiveJournalApi";
+import LiveJournalApi from "./LiveJournalApi";
 
 const ljApi = new LiveJournalApi("your_username", "your_password", "clear");
 
@@ -52,7 +52,7 @@ Currently no create, update or delete methods are implemented, only methods that
 - [x] `getfriends`
 - [x] `getfriendspage`
 - [x] `getinbox`
-- [ ] `getpoll`
+- [x] `getpoll`
 - [ ] `getpushlist`
 - [x] `getrecentcomments`
 - [ ] `getrepoststatus`

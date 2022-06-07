@@ -14,3 +14,4 @@ export * from './LiveJournalSelectType';
 export * from './LiveJournalSessionDescriptor';
 export * from './LiveJournalUserProfile';
 export * from './LiveJournalUserTag';
+export * from './LiveJournalPoll';

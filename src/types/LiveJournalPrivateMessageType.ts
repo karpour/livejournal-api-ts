@@ -23,4 +23,4 @@ export const LiveJournalPrivateMessageTypes = [
     'UserNewEntry'] as const;
 
 
-export type LiveJournalPrivateMessageType = keyof typeof LiveJournalPrivateMessageTypes[number];
+export type LiveJournalPrivateMessageType = typeof LiveJournalPrivateMessageTypes[number];

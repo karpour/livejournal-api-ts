@@ -1,18 +1,20 @@
-import { XmlRpcClient, XmlRpcFault, XmlRpcStruct } from "@foxglove/xmlrpc";
+import { XmlRpcClient, XmlRpcFault, XmlRpcStruct, XmlRpcValue } from "@foxglove/xmlrpc";
 import fetch from "node-fetch";
+import { LiveJournalApiAuthOptions } from "./auth/LiveJournalApiAuthOptions";
 import { getIconsFromHTML } from "./getIconsFromHTML";
 
 import {
     convertLiveJournalGetFriendsOptions,
     convertLiveJournalGetFriendsPageOptions,
-    LiveJournalApiAuthOptions,
     LiveJournalApiError,
     LiveJournalCheckFriendsOptions,
+    LiveJournalGetCommentsOptions,
     LiveJournalGetEventsOptions,
     LiveJournalGetFriendsOptions,
     LiveJournalGetFriendsOptionsIncludeFriendOf,
     LiveJournalGetFriendsOptionsIncludeGroups,
-    LiveJournalGetFriendsPageOptions
+    LiveJournalGetFriendsPageOptions,
+    LiveJournalGetPollOptions
 } from './options';
 import { LiveJournalGetInboxOptionsExtended, LiveJournalGetInboxOptionsRegular, LiveJournalGetInboxOptions } from "./options/LiveJournalGetInboxOptions";
 import { LiveJournalGetRecentCommentsOptionsRaw } from "./options/LiveJournalGetRecentCommentsOptions";
@@ -21,8 +23,11 @@ import { LiveJournalUpdateCommentsOptions } from "./options/LiveJournalUpdateCom
 import {
     convertGetFriendGroupsResponse,
     LiveJournalCheckFriendsResponse,
+    LiveJournalCheckSessionResponse,
     LiveJournalGetChallengeResponse,
+    LiveJournalGetCommentsResponse,
     LiveJournalGetEventResponse,
+    LiveJournalGetEventResponseRaw,
     LiveJournalGetFriendGroupsResponseRaw,
     LiveJournalGetFriendsOfResponse,
     LiveJournalGetFriendsPageResponse,
@@ -51,6 +56,7 @@ import {
     LiveJournalGetUserProfileOptions,
     LiveJournalGetUserTagsResponse,
     LiveJournalIconInfo,
+    LiveJournalPoll,
     LiveJournalUserProfile,
     LiveJournalUserTag,
 } from './types';
@@ -104,12 +110,8 @@ export type LiveJournalApiMethod = typeof LIVEJOURNAL_API_METHODS[number];
 
 export default class LiveJournalApi {
     private authOptions: LiveJournalApiAuthOptions;
-    public constructor(user: string, password: string, authMethod: "clear" /*| "challenge" | "cookie" */ = "clear", cookieFile?: string) {
-        this.authOptions = {
-            username: user,
-            password: password,
-            auth_method: authMethod
-        };
+    public constructor(authOptions: LiveJournalApiAuthOptions) {
+        this.authOptions = { ...authOptions };
     }
 
     private getAuthParams(): LiveJournalApiAuthOptions {
@@ -123,13 +125,13 @@ export default class LiveJournalApi {
      * @throws Error if API returns an Error
      * @returns API answer
      */
-    private methodCall(method: LiveJournalApiMethod, params: XmlRpcStruct = {}): Promise<any> {
+    private methodCall<TReturn extends XmlRpcValue = any>(method: LiveJournalApiMethod, params: XmlRpcStruct = {}): Promise<TReturn> {
         return ljXmlRpc.methodCall(`LJ.XMLRPC.${method}`, [Object.assign({ version: 1 }, this.getAuthParams(), params)]).catch(err => {
             if (err instanceof XmlRpcFault) {
                 throw new LiveJournalApiError(err.faultString, err.code);
             }
             throw err;
-        });
+        }) as Promise<TReturn>;
     };
 
 
@@ -146,15 +148,15 @@ export default class LiveJournalApi {
      */
     public checkFriends(params: LiveJournalCheckFriendsOptions): Promise<LiveJournalCheckFriendsResponse> {
         return this.methodCall('checkfriends');
-    }
+    };
 
     /**
      * 
      * @returns 
      */
-    public checksession(): Promise<LiveJournalCheckFriendsResponse> {
+    public checksession(): Promise<LiveJournalCheckSessionResponse> {
         return this.methodCall('checksession');
-    }
+    };
 
     // TODO consolecommand
     // public consolecommand(params: any): Promise<any> { return this.methodCall('consolecommand'); }
@@ -194,19 +196,16 @@ export default class LiveJournalApi {
      */
     public getChallenge(): Promise<LiveJournalGetChallengeResponse> {
         return this.methodCall('getchallenge');
-    }
+    };
 
     /**
      * Get comments for an item (undocumented API endpoint)
      * @param itemId Article ID
      * @returns List of comments
      */
-    public getComments(itemId: number) {
-        return this.methodCall("getcomments", {
-            usejournal: "karpour",
-            itemid: itemId,
-            expand_strategy: "expand_all"
-        });
+    public getComments(params: LiveJournalGetCommentsOptions): Promise<LiveJournalGetCommentsResponse> {
+        // TODO convert response
+        return this.methodCall("getcomments", params);
     }
 
     /**
@@ -216,7 +215,7 @@ export default class LiveJournalApi {
      */
     public getdaycounts(usejournal?: string): Promise<any> {
         return this.methodCall('getdaycounts', usejournal ? { usejournal: usejournal } : {});
-    }
+    };
 
     /**
      * Get Events
@@ -224,8 +223,7 @@ export default class LiveJournalApi {
      * @returns 
      */
     public getEvents(params: LiveJournalGetEventsOptions): Promise<LiveJournalGetEventResponse> {
-        // TODO type checks
-        return this.methodCall('getevents', params).then(resp => {
+        return this.methodCall<LiveJournalGetEventResponseRaw>('getevents', params).then(resp => {
             return {
                 skip: resp.skip,
                 events: resp.events.map((e: any) => convertLiveJournalEventRaw(e)),
@@ -239,11 +237,9 @@ export default class LiveJournalApi {
      * @returns 
      */
     public getfriendgroups(): Promise<LiveJournalFriendGroup[]> {
-        return this.methodCall('getfriendgroups').then(
-            (response: LiveJournalGetFriendGroupsResponseRaw) => {
-                return convertGetFriendGroupsResponse(response).friendgroups;
-            });
-    }
+        return this.methodCall<LiveJournalGetFriendGroupsResponseRaw>('getfriendgroups')
+            .then(response => convertGetFriendGroupsResponse(response).friendgroups);
+    };
 
     /**
      * Get list of friends
@@ -256,8 +252,8 @@ export default class LiveJournalApi {
     public getFriends(params: LiveJournalGetFriendsOptions): Promise<LiveJournalGetFriendsResponse>;
     public getFriends(): Promise<LiveJournalGetFriendsResponse>;
     public getFriends(params: LiveJournalGetFriendsOptions = {}): Promise<LiveJournalGetFriendsResponse> {
-        return this.methodCall("getfriends", convertLiveJournalGetFriendsOptions(params));
-    }
+        return this.methodCall<LiveJournalGetFriendsResponse>("getfriends", convertLiveJournalGetFriendsOptions(params));
+    };
 
     /**
      * Get Friends page
@@ -281,11 +277,19 @@ export default class LiveJournalApi {
     public getInbox(params: LiveJournalGetInboxOptionsExtended): Promise<LiveJournalGetInboxResponseExtended>;
     public getInbox(params: LiveJournalGetInboxOptionsRegular): Promise<LiveJournalGetInboxResponseRegular>;
     public getInbox(params: LiveJournalGetInboxOptions): Promise<LiveJournalGetInboxResponse> {
-        return this.methodCall('getinbox');
-    }
+        return this.methodCall<LiveJournalGetInboxResponse>('getinbox', params);
+    };
 
-    // TODO getpoll
-    // public getpoll(params: any): Promise<any> { return this.methodCall('getpoll'); }
+    /**
+     * Get Poll
+     * @param params Get poll options
+     * @param {LiveJournalPollMode} [params.pollid='all'] Poll mode, default='all'
+     * @returns 
+     */
+    public getPoll(params: LiveJournalGetPollOptions): Promise<LiveJournalPoll> {
+        return this.methodCall('getpoll', params);
+    };
+
     // TODO getpushlist
     // public getpushlist(params: any): Promise<any> { return this.methodCall('getpushlist'); }
 
@@ -298,7 +302,7 @@ export default class LiveJournalApi {
         return this.methodCall('getrecentcomments').then(
             (response: LiveJournalGetRecentCommentsResponse) => response.comments.map(convertLiveJournalRecentComment)
         );
-    }
+    };
 
     // TODO getrepoststatus
     // public getrepoststatus(params: any): Promise<any> { return this.methodCall('getrepoststatus'); }
@@ -309,7 +313,7 @@ export default class LiveJournalApi {
      */
     public getUserPics(): Promise<LiveJournalGetUserPicsResponse> {
         return this.methodCall("getuserpics");
-    }
+    };
 
     /**
      * Get User Tags
@@ -371,7 +375,7 @@ export default class LiveJournalApi {
      */
     public updateComments(params: LiveJournalUpdateCommentsOptions): Promise<LiveJournalUpdateCommentsResponse> {
         return this.methodCall('updatecomments', params);
-    }
+    };
 
     // TODO votepoll
     // public votepoll(params: LiveJournalUpdateCommentsOptions): Promise<any> { return this.methodCall('votepoll'); }

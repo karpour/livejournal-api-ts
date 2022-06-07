@@ -1,5 +1,12 @@
-import { LiveJournalEvent } from "../types/LiveJournalEvent";
+import { LiveJournalDateString } from "../types";
+import { LiveJournalEvent, LiveJournalEventRaw } from "../types/LiveJournalEvent";
 
+
+export type LiveJournalGetEventResponseRaw = {
+    skip: number;
+    events: LiveJournalEventRaw[];
+    lastsync: LiveJournalDateString;
+};
 
 export type LiveJournalGetEventResponse = {
     skip: number;

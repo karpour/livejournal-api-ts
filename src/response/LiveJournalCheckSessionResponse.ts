@@ -5,7 +5,4 @@ export type LiveJournalCheckSessionResponse = {
     session: LiveJournalSessionDescriptor,
     caps: any;
     usejournals: string[];
-    xc3: {
-        u: any;
-    };
 };

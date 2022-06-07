@@ -11,3 +11,4 @@ export * from './LiveJournalGetUserPicsResponse';
 export * from './LiveJournalSessionGenerateResponse';
 export * from './LiveJournalUpdateCommentsResponse';
 export * from './LiveJournalGetFriendsOfResponse';
+export * from './LiveJournalGetCommentsResponse';
