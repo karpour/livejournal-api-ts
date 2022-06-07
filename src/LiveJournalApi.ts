@@ -1,37 +1,59 @@
 import { XmlRpcClient, XmlRpcFault, XmlRpcStruct } from "@foxglove/xmlrpc";
 import fetch from "node-fetch";
-
-import { LiveJournalApiAuthOptions } from "./LiveJournalApiAuthOptions";
-import { convertLiveJournalDateString, convertLiveJournalEventRaw } from "./LiveJournalEvent";
-import { convertToLiveJournalApiBool } from "./LiveJournalApiBool";
-import { LiveJournalGetEventResponse } from "./LiveJournalGetEventResponse";
-import { LiveJournalGetFriendsResponse, LiveJournalGetFriendsResponseWithFriendGroups, LiveJournalGetFriendsResponseWithFriendGroupsAndFriendOfs, LiveJournalGetFriendsResponseWithFriendOfs } from "./LiveJournalGetFriendsResponse";
-import { LiveJournalGetEventsOptions } from "./LiveJournalGetEventsOptions";
-import { convertLiveJournalGetFriendsOptions, LiveJournalGetFriendsOptions, LiveJournalGetFriendsOptionsIncludeFriendOf, LiveJournalGetFriendsOptionsIncludeGroups } from "./LiveJournalGetFriendsOptions";
-import { convertLiveJournalGetFriendsPageOptions, LiveJournalGetFriendsPageOptions } from "./LiveJournalGetFriendsPageOptions";
-import { LiveJournalGetFriendsPageResponse } from "./LiveJournalGetFriendsPageResponse";
-import { convertLiveJournalFriendsEvent } from "./LiveJournalFriendsEvent";
-import { LiveJournalApiError } from "./LiveJournalApiError";
-import { LiveJournalGetUserProfileOptions, LiveJournalUserProfile } from "./LiveJournalUserProfile";
-import { LiveJournalGetUserTagsResponse, LiveJournalUserTag } from "./LiveJournalUserTag";
-import { LiveJournalGetFriendsOfResponse } from "./LiveJournalFriendOf";
-import { LiveJournalFriend } from "./LiveJournalFriend";
-import { LiveJournalSessionGenerateResponse } from "./LiveJournalSessionGenerateResponse";
 import { getIconsFromHTML } from "./getIconsFromHTML";
-import { LiveJournalIconInfo } from "./LiveJournalIconInfo";
-import { LiveJournalGetUserPicsResponse } from "./LiveJournalGetUserPicsResponse";
-import { LiveJournalCheckFriendsOptions } from "./LiveJournalCheckFriendsOptions";
-import { LiveJournalCheckFriendsResponse } from "./LiveJournalCheckFriendsResponse";
-import { LiveJournalGetChallengeResponse } from "./LiveJournalGetChallengeResponse";
-import { LiveJournalFriendGroup } from "./LiveJournalFriendGroup";
-import { convertGetFriendGroupsResponse, LiveJournalGetFriendGroupsResponse, LiveJournalGetFriendGroupsResponseRaw } from "./LiveJournalGetFriendGroupsResponse";
-import { LiveJournalUpdateCommentsOptions } from "./LiveJournalUpdateCommentsOptions";
-import { LiveJournalUpdateCommentsResponse } from "./LiveJournalUpdateCommentsResponse";
-import { LiveJournalGetInboxResponse, LiveJournalGetInboxResponseExtended, LiveJournalGetInboxResponseRegular } from "./LiveJournalGetInboxResponse";
-import { LiveJournalGetInboxOptions, LiveJournalGetInboxOptionsExtended, LiveJournalGetInboxOptionsRegular } from "./LiveJournalGetInboxOptions";
-import { LiveJournalGetRecentCommentsOptionsRaw } from "./LiveJournalGetRecentCommentsOptions";
-import { LiveJournalGetRecentCommentsResponse } from "./LiveJournalGetRecentCommentsResponse";
-import { convertLiveJournalRecentComment, LiveJournalComment } from "./LiveJournalComment";
+
+import {
+    convertLiveJournalGetFriendsOptions,
+    convertLiveJournalGetFriendsPageOptions,
+    LiveJournalApiAuthOptions,
+    LiveJournalApiError,
+    LiveJournalCheckFriendsOptions,
+    LiveJournalGetEventsOptions,
+    LiveJournalGetFriendsOptions,
+    LiveJournalGetFriendsOptionsIncludeFriendOf,
+    LiveJournalGetFriendsOptionsIncludeGroups,
+    LiveJournalGetFriendsPageOptions
+} from './options';
+import { LiveJournalGetInboxOptionsExtended, LiveJournalGetInboxOptionsRegular, LiveJournalGetInboxOptions } from "./options/LiveJournalGetInboxOptions";
+import { LiveJournalGetRecentCommentsOptionsRaw } from "./options/LiveJournalGetRecentCommentsOptions";
+import { LiveJournalUpdateCommentsOptions } from "./options/LiveJournalUpdateCommentsOptions";
+
+import {
+    convertGetFriendGroupsResponse,
+    LiveJournalCheckFriendsResponse,
+    LiveJournalGetChallengeResponse,
+    LiveJournalGetEventResponse,
+    LiveJournalGetFriendGroupsResponseRaw,
+    LiveJournalGetFriendsOfResponse,
+    LiveJournalGetFriendsPageResponse,
+    LiveJournalGetFriendsResponse,
+    LiveJournalGetFriendsResponseWithFriendGroups,
+    LiveJournalGetFriendsResponseWithFriendGroupsAndFriendOfs,
+    LiveJournalGetFriendsResponseWithFriendOfs,
+    LiveJournalGetInboxResponse,
+    LiveJournalGetInboxResponseExtended,
+    LiveJournalGetInboxResponseRegular,
+    LiveJournalGetRecentCommentsResponse,
+    LiveJournalGetUserPicsResponse,
+    LiveJournalSessionGenerateResponse,
+    LiveJournalUpdateCommentsResponse,
+} from './response';
+
+import {
+    convertLiveJournalDateString,
+    convertLiveJournalEventRaw,
+    convertLiveJournalFriendsEvent,
+    convertLiveJournalRecentComment,
+    convertToLiveJournalApiBool,
+    LiveJournalComment,
+    LiveJournalFriend,
+    LiveJournalFriendGroup,
+    LiveJournalGetUserProfileOptions,
+    LiveJournalGetUserTagsResponse,
+    LiveJournalIconInfo,
+    LiveJournalUserProfile,
+    LiveJournalUserTag,
+} from './types';
 
 const ljXmlRpc = new XmlRpcClient("https://www.livejournal.com/interface/xmlrpc");
 

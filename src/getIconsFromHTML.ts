@@ -1,5 +1,5 @@
 import parse, { HTMLElement } from "node-html-parser";
-import { LiveJournalIconInfo, LiveJournalIconInfoDetails } from "./LiveJournalIconInfo";
+import { LiveJournalIconInfo, LiveJournalIconInfoDetails } from "./types";
 import { decode } from "html-entities";
 
 

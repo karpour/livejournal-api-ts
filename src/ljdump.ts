@@ -1,12 +1,14 @@
 import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import LiveJournalApi from "./LiveJournalApi";
-import { LiveJournalFriendGroupInfo, LiveJournalFriend } from "./LiveJournalFriend";
 import https from "https";
-import { LiveJournalUserProfile } from "./LiveJournalUserProfile";
-import { LiveJournalEvent } from "./LiveJournalEvent";
-import { decode } from "html-entities";
-import { NodeHtmlMarkdown, NodeHtmlMarkdownOptions } from 'node-html-markdown';
+import {
+    LiveJournalEvent,
+    LiveJournalFriend,
+    LiveJournalFriendGroupInfo,
+    LiveJournalUserProfile
+} from "./types";
+import convertLjPostToMarkdown from "./markdown/convertLjPostToMarkdown";
 
 // This is very much a WIP
 
@@ -22,9 +24,7 @@ const FRIENDGROUPS_FILE = path.join(OUT_DIR, 'friendgroups.json');
 const USERPROFILE_FILE = path.join(OUT_DIR, 'userprofile.json');
 const EVENT_FILE = path.join(OUT_DIR, 'events.json');
 
-
 const ljApi = new LiveJournalApi(username, password, "clear");
-
 
 function parseDefaultIconUrl(url: string, username: string): string {
     const RegExp_Icon_Url = /^https?:\/\/l-userpic.livejournal.com\/\d+\/(\d+)$/;
@@ -39,22 +39,16 @@ async function main() {
 
     mkdirSync(OUT_DIR, { recursive: true });
 
-    const friends = await getFriends();
-    const friendOfs = await getFriendOf();
-    const friendGroups = await getFriendGroups();
-    const userProfile = await getUserProfile();
+    //const friends = await getFriends();
+    //const friendOfs = await getFriendOf();
+    //const friendGroups = await getFriendGroups();
+    //const userProfile = await getUserProfile();
     const events = await getEvents();
 
     const ev = events[0];
     console.log(ev.event);
-    //console.log(decode(ev.event));
-    console.log(NodeHtmlMarkdown.translate(
-        /* html */ ev.event,
-        /* options (optional) */ {},
-        /* customTranslators (optional) */ undefined,
-        /* customCodeBlockTranslators (optional) */ undefined
-    ));
-
+    console.log('===============================');
+    console.log(convertLjPostToMarkdown(ev.event));
 
 
     const usericonDir = path.join(OUT_DIR, "usericons");
@@ -83,7 +77,8 @@ async function getEvents(): Promise<LiveJournalEvent[]> {
         const events = (await ljApi.getEvents({
             selecttype: "lastn",
             usejournal: "karpour",
-            lineendings: "unix"
+            lineendings: "unix",
+            parseljtags: false,
         })).events;
         writeFileSync(EVENT_FILE, JSON.stringify(events, null, 4));
         return events;

@@ -1,5 +1,4 @@
-import { LiveJournalFriendsEventRaw } from "./LiveJournalFriendsEvent";
-
+import { LiveJournalFriendsEventRaw } from "../types/LiveJournalFriendsEvent";
 
 export type LiveJournalGetFriendsPageResponse = {
     skip: number;

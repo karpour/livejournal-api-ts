@@ -1,4 +1,4 @@
-import { LiveJournalSessionDescriptor } from "./LiveJournalSessionDescriptor";
+import { LiveJournalSessionDescriptor } from "../types/LiveJournalSessionDescriptor";
 
 export type LiveJournalCheckSessionResponse = {
     username: string;

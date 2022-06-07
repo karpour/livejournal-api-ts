@@ -1,4 +1,7 @@
-import { convertToLiveJournalApiBool, LiveJournalApiBool } from "./LiveJournalApiBool";
+import {
+    convertToLiveJournalApiBool,
+    LiveJournalApiBool
+} from "../types";
 
 export type LiveJournalGetFriendsOptions = {
     /** When set to true, returns information on users who friended the current user */

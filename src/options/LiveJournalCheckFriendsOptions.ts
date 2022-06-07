@@ -1,4 +1,4 @@
-import { LiveJournalDateString } from "./LiveJournalDateString";
+import { LiveJournalDateString } from "../types/LiveJournalDateString";
 
 export type LiveJournalCheckFriendsOptions = {
     lastupdate: LiveJournalDateString;

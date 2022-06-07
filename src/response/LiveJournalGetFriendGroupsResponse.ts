@@ -1,4 +1,4 @@
-import { convertLiveJournalFriendGroup, LiveJournalFriendGroup, LiveJournalFriendGroupRaw } from "./LiveJournalFriendGroup";
+import { convertLiveJournalFriendGroup, LiveJournalFriendGroup, LiveJournalFriendGroupRaw } from "../types/LiveJournalFriendGroup";
 
 export type LiveJournalGetFriendGroupsResponse = {
     friendgroups: LiveJournalFriendGroup[];

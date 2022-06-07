@@ -1,4 +1,4 @@
-import { LiveJournalFriend, LiveJournalFriendGroupInfo } from "./LiveJournalFriend";
+import { LiveJournalFriend, LiveJournalFriendGroupInfo } from "../types/LiveJournalFriend";
 
 
 export type LiveJournalGetFriendsResponse = {

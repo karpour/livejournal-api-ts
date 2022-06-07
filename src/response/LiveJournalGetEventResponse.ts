@@ -1,4 +1,4 @@
-import { LiveJournalEvent } from "./LiveJournalEvent";
+import { LiveJournalEvent } from "../types/LiveJournalEvent";
 
 
 export type LiveJournalGetEventResponse = {

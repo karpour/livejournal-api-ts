@@ -1,6 +1,9 @@
-import { convertToLiveJournalApiBool, LiveJournalApiBool } from "./LiveJournalApiBool";
-import { convertToLiveJournalDateString } from "./LiveJournalDateString";
-import { LiveJournalJournalType } from "./LiveJournalJournalType";
+import {
+    convertToLiveJournalApiBool,
+    convertToLiveJournalDateString,
+    LiveJournalApiBool,
+    LiveJournalJournalType
+} from "../types";
 
 
 export type LiveJournalGetFriendsPageOptions = {

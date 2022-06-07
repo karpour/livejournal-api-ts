@@ -1,5 +1,7 @@
-import { LiveJournalDateString } from "./LiveJournalDateString";
-import { LiveJournalSelectType } from "./LiveJournalSelectType";
+import {
+    LiveJournalDateString,
+    LiveJournalSelectType
+} from "../types";
 
 export type LiveJournalGetEventsOptionsCommon = {
     /** Defines the length of return values. Return values are truncated to the specified number of characters after decryption. (Integer) */

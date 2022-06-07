@@ -1,4 +1,4 @@
-import { LiveJournalApiBool } from "./LiveJournalApiBool";
+import { LiveJournalApiBool } from "../types/LiveJournalApiBool";
 
 export type LiveJournalGetRecentCommentsOptionsRaw = {
     /** Number of retrieved replies. 

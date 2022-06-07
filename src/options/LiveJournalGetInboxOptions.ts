@@ -1,4 +1,4 @@
-import { LiveJournalPrivateMessageType } from "./LiveJournalPrivateMessageType";
+import { LiveJournalPrivateMessageType } from "../types/LiveJournalPrivateMessageType";
 
 type LiveJournalGetInboxOptionsCommon = {
     /** Number of returned entries (from 0 to 100). The default is set to 100 */

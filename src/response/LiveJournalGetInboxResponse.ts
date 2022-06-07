@@ -1,4 +1,4 @@
-import { LiveJournalPrivateMessage, LiveJournalPrivateMessageExtended } from "./LiveJournalPrivateMessage";
+import { LiveJournalPrivateMessage, LiveJournalPrivateMessageExtended } from "../types/LiveJournalPrivateMessage";
 
 type LiveJournalGetInboxResponseCommon = {
     /** Number of skipped messages. Corresponds to the skip input */
