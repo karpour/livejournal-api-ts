@@ -10,11 +10,11 @@ export type LiveJournalGetFriendsResponse = {
     friendgroups?: LiveJournalFriendGroupInfo[];
 };
 
-type ExplicitFriendOfs = {
+export type ExplicitFriendOfs = {
     friendofs: LiveJournalFriend[];
 };
 
-type ExplicitFriendGroups = {
+export type ExplicitFriendGroups = {
     friendgroups: LiveJournalFriendGroupInfo[];
 };
 

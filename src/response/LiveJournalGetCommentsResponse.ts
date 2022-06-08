@@ -1,6 +1,6 @@
-import { LiveJournalComment, LiveJournalCommentRaw } from "../types";
+import { convertLiveJournalComment, LiveJournalComment, LiveJournalCommentRaw } from "../types";
 
-export type LiveJournalGetCommentsResponseRaw = {
+export type LiveJournalGetCommentsResponseBasicRaw = {
     comments: LiveJournalCommentRaw[];
     topitems: number;
     topitem_first: number;
@@ -11,21 +11,25 @@ export type LiveJournalGetCommentsResponseRaw = {
     ditemid: number;
 };
 
-export type LiveJournalGetCommentsResponse = {
-    comments: LiveJournalComment[];
-    topitems: number;
-    topitem_first: number;
-    topitem_last: number;
-    page_size: number;
-    pages: number;
-    page: number;
-    ditemid: number;
+export type LiveJournalGetCommentsResponseExtendedRaw = LiveJournalGetCommentsResponseBasicRaw & LiveJournalGetCommentsResponseExtendedExtra;
+export type LiveJournalGetCommentsResponseRaw = LiveJournalGetCommentsResponseBasicRaw | LiveJournalGetCommentsResponseExtendedRaw;
+
+export type LiveJournalGetCommentsResponseExtendedExtra = {
+    items: number;
+    skip: number;
+    itemshow: number;
 };
 
-/*
-$extra{items} = LJ::Talk::get_replycount($journal, $jitem->{jitemid});
-$itemshow = $extra{items} unless ($itemshow && $itemshow <= $extra{items});
-@comments = splice(@comments, $skip, $itemshow);
-$extra{skip} = $skip;
-$extra{itemshow} = $itemshow;
-*/
+export type LiveJournalGetCommentsResponseExtra = {
+    comments: LiveJournalComment[];
+};
+
+export type LiveJournalGetCommentsResponseBasic = Omit<LiveJournalGetCommentsResponseBasicRaw, keyof LiveJournalGetCommentsResponseExtra> & LiveJournalGetCommentsResponseExtra;
+export type LiveJournalGetCommentsResponseExtended = LiveJournalGetCommentsResponseBasic & LiveJournalGetCommentsResponseExtendedExtra;
+export type LiveJournalGetCommentsResponse = LiveJournalGetCommentsResponseBasic | LiveJournalGetCommentsResponseExtended;
+
+export function convertLiveJournalGetCommentsResponse(resp: LiveJournalGetCommentsResponseRaw): LiveJournalGetCommentsResponse {
+    return Object.assign(resp, {
+        comments: resp.comments.map(convertLiveJournalComment)
+    });
+}

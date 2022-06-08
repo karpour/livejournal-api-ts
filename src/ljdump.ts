@@ -24,7 +24,11 @@ const FRIENDGROUPS_FILE = path.join(OUT_DIR, 'friendgroups.json');
 const USERPROFILE_FILE = path.join(OUT_DIR, 'userprofile.json');
 const EVENT_FILE = path.join(OUT_DIR, 'events.json');
 
-const ljApi = new LiveJournalApi(username, password, "clear");
+const ljApi = new LiveJournalApi({
+    authMethod: "clear",
+    username: username,
+    password: password
+});
 
 function parseDefaultIconUrl(url: string, username: string): string {
     const RegExp_Icon_Url = /^https?:\/\/l-userpic.livejournal.com\/\d+\/(\d+)$/;

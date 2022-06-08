@@ -15,3 +15,6 @@ export * from './LiveJournalSessionDescriptor';
 export * from './LiveJournalUserProfile';
 export * from './LiveJournalUserTag';
 export * from './LiveJournalPoll';
+export * from './LiveJournalCookieData';
+export * from './LiveJournalCookieDuration';
+export * from './LiveJournalPollMode';

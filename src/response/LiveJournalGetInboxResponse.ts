@@ -1,6 +1,6 @@
 import { LiveJournalPrivateMessage, LiveJournalPrivateMessageExtended } from "../types/LiveJournalPrivateMessage";
 
-type LiveJournalGetInboxResponseCommon = {
+export type LiveJournalGetInboxResponseCommon = {
     /** Number of skipped messages. Corresponds to the skip input */
     skip: number; 
     /** Journal type (refer to item 2.5.1) */

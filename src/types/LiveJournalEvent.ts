@@ -152,9 +152,19 @@ export type LiveJournalEventExtraProps = {
 
 export type LiveJournalEventProps = Omit<LiveJournalEventPropsRaw, keyof LiveJournalEventExtraProps> & LiveJournalEventExtraProps;
 
-
-
-
+export type LiveJournalExportEvent = Pick<LiveJournalEvent,
+    'itemid' |
+    'eventtime' |
+    'logtime' |
+    'subject' |
+    'event' |
+    'security' |
+    'allowmask'> & {
+        /** Current Mood Current user mood defined at posting */
+        current_mood?: string;
+        /** Current Music Music the user is listening to when an entry is posted */
+        current_music?: string;
+    };
 
 export function convertLiveJournalDateString(ljDateString: LiveJournalDateString): Date {
     return new Date(ljDateString);

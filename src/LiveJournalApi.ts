@@ -1,31 +1,38 @@
 import { XmlRpcClient, XmlRpcFault, XmlRpcStruct, XmlRpcValue } from "@foxglove/xmlrpc";
 import fetch from "node-fetch";
-import { LiveJournalApiAuthOptions } from "./auth/LiveJournalApiAuthOptions";
+import { LiveJournalApiAuthMethod, LiveJournalApiOptions, LiveJournalApiAuthOptionsClear } from "./options/LiveJournalApiOptions";
 import { getIconsFromHTML } from "./getIconsFromHTML";
 
 import {
+    convertLiveJournalExportOptions,
+    convertLiveJournalGetCommentsOptions,
     convertLiveJournalGetFriendsOptions,
     convertLiveJournalGetFriendsPageOptions,
     LiveJournalApiError,
     LiveJournalCheckFriendsOptions,
+    LiveJournalExportOptions,
+    LiveJournalExportOptionsCsv,
     LiveJournalGetCommentsOptions,
     LiveJournalGetEventsOptions,
     LiveJournalGetFriendsOptions,
     LiveJournalGetFriendsOptionsIncludeFriendOf,
     LiveJournalGetFriendsOptionsIncludeGroups,
     LiveJournalGetFriendsPageOptions,
-    LiveJournalGetPollOptions
+    LiveJournalGetInboxOptions,
+    LiveJournalGetInboxOptionsExtended,
+    LiveJournalGetInboxOptionsRegular,
+    LiveJournalGetPollOptions,
+    LiveJournalGetRecentCommentsOptionsRaw,
+    LiveJournalUpdateCommentsOptions
 } from './options';
-import { LiveJournalGetInboxOptionsExtended, LiveJournalGetInboxOptionsRegular, LiveJournalGetInboxOptions } from "./options/LiveJournalGetInboxOptions";
-import { LiveJournalGetRecentCommentsOptionsRaw } from "./options/LiveJournalGetRecentCommentsOptions";
-import { LiveJournalUpdateCommentsOptions } from "./options/LiveJournalUpdateCommentsOptions";
 
 import {
     convertGetFriendGroupsResponse,
+    convertLiveJournalGetCommentsResponse,
     LiveJournalCheckFriendsResponse,
     LiveJournalCheckSessionResponse,
     LiveJournalGetChallengeResponse,
-    LiveJournalGetCommentsResponse,
+    LiveJournalGetCommentsResponseBasic,
     LiveJournalGetEventResponse,
     LiveJournalGetEventResponseRaw,
     LiveJournalGetFriendGroupsResponseRaw,
@@ -51,6 +58,8 @@ import {
     convertLiveJournalRecentComment,
     convertToLiveJournalApiBool,
     LiveJournalComment,
+    LiveJournalCookieDuration,
+    LiveJournalExportEvent,
     LiveJournalFriend,
     LiveJournalFriendGroup,
     LiveJournalGetUserProfileOptions,
@@ -61,9 +70,17 @@ import {
     LiveJournalUserTag,
 } from './types';
 
-const ljXmlRpc = new XmlRpcClient("https://www.livejournal.com/interface/xmlrpc");
+import { LiveJournalCookieData } from "./types/LiveJournalCookieData";
+import { parsePostExportsCsv } from "./parsePostExportsCsv";
+import { addDays } from "./addDays";
+import { existsSync, readFileSync, ReadStream } from "fs";
 
-const LIVEJOURNAL_API_METHODS = [
+export const LIVEJOURNAL_URL = 'https://www.livejournal.com';
+export const LIVEJOURNAL_EXPORT_POSTS_URL = `${LIVEJOURNAL_URL}/export_do.bml`;
+export const LIVEJOURNAL_EXPORT_COMMENTS_URL = `${LIVEJOURNAL_URL}/export_comments.bml`;
+export const LIVEJOURNAL_XMLRPC_URL = `${LIVEJOURNAL_URL}/interface/xmlrpc`;
+
+export const LIVEJOURNAL_API_METHODS = [
     'addcomment',
     'checkfriends',
     'checksession',
@@ -108,14 +125,93 @@ const LIVEJOURNAL_API_METHODS = [
 ] as const;
 export type LiveJournalApiMethod = typeof LIVEJOURNAL_API_METHODS[number];
 
-export default class LiveJournalApi {
-    private authOptions: LiveJournalApiAuthOptions;
-    public constructor(authOptions: LiveJournalApiAuthOptions) {
-        this.authOptions = { ...authOptions };
+
+export type LiveJournalApiAuthParams = {
+    /** Password authentication method */
+    auth_method: LiveJournalApiAuthMethod;
+    /** User name */
+    username: string;
+    /** MD5 hash of the user password. The password field is left empty if this one is filled */
+    hpassword?: string;
+    /** User password exported in plain text. Note that the hpassword field is not used for configuration of this setting */
+    password?: string;
+    /** Challenge value returned by the server */
+    auth_challenge?: string;
+    /** Client response value */
+    auth_response?: string;
+};
+
+
+export class LiveJournalApi {
+    protected readonly staticAuthParams: LiveJournalApiAuthParams;
+    protected readonly authMethod: LiveJournalApiAuthMethod;
+    protected cookie: Partial<LiveJournalCookieData> | LiveJournalCookieData;
+    protected cookieRefresh: LiveJournalCookieDuration;
+    protected ljXmlRpc: XmlRpcClient | undefined;
+    protected verbose: (message: any) => void = () => { };
+    protected userAgent: string;
+    protected throttle: boolean;
+    protected trottleRequestsPerSecond: number;
+
+    private getAuthParams: () => LiveJournalApiAuthParams;
+
+    private async getCookieHeader(): Promise<{ [key: string]: string; }> {
+        return {
+            'cookie': `ljsession=${(await this.getLjSession())}`,
+            'X-LJ-Auth': 'cookie',
+            'User-Agent': this.userAgent
+        };
     }
 
-    private getAuthParams(): LiveJournalApiAuthOptions {
-        return this.authOptions;
+    /**
+     * 
+     * @param options 
+     */
+    public constructor(options: LiveJournalApiOptions) {
+        if (options.verbose) this.verbose = console.error;
+        this.verbose(`Created LiveJournalApi instance`);
+
+        this.throttle = options.throttle ?? false;
+        this.trottleRequestsPerSecond = options.trottleRequestsPerSecond ?? 5;
+
+        this.authMethod = options.authMethod;
+        this.staticAuthParams = {
+            auth_method: options.authMethod,
+            username: options.username
+        };
+
+        if (options.authMethod == "clear") {
+            const passwords: LiveJournalApiAuthOptionsClear & { hpassword?: string, password?: string; } = options;
+            if (passwords.password) this.staticAuthParams.password = passwords.password;
+            if (passwords.hpassword) this.staticAuthParams.hpassword = passwords.hpassword;
+        }
+
+
+        this.getAuthParams = () => this.staticAuthParams;
+
+        this.cookie = { ...options.cookie };
+        if (options.cookieFile) {
+            if (!existsSync(options.cookieFile)) throw new Error(`Cookie file "${options.cookieFile}" does not exist`);
+            const credentials = JSON.parse(readFileSync(options.cookieFile).toString()) as Partial<LiveJournalCookieData>;
+            this.cookie.ljSession = credentials.ljSession;
+            this.cookie.expires = (credentials.expires && credentials.ljSession) ? new Date(credentials.expires) : undefined;
+            this.verbose(`Loaded cookie file "${options.cookieFile}"`);
+            this.verbose(this.cookie);
+        }
+
+        this.cookieRefresh = options.cookieRefresh ?? "long";
+
+        this.userAgent = 'XML-RPC/0.9';
+    }
+
+
+    private async initXmlRpc(): Promise<XmlRpcClient> {
+        if (this.authMethod === "cookie") {
+            this.ljXmlRpc = new XmlRpcClient(LIVEJOURNAL_XMLRPC_URL, { headers: (await this.getCookieHeader()) });
+        } else {
+            this.ljXmlRpc = new XmlRpcClient(LIVEJOURNAL_XMLRPC_URL);
+        }
+        return this.ljXmlRpc;
     }
 
     /**
@@ -125,8 +221,9 @@ export default class LiveJournalApi {
      * @throws Error if API returns an Error
      * @returns API answer
      */
-    private methodCall<TReturn extends XmlRpcValue = any>(method: LiveJournalApiMethod, params: XmlRpcStruct = {}): Promise<TReturn> {
-        return ljXmlRpc.methodCall(`LJ.XMLRPC.${method}`, [Object.assign({ version: 1 }, this.getAuthParams(), params)]).catch(err => {
+    private async methodCall<TReturn extends XmlRpcValue = any>(method: LiveJournalApiMethod, params: XmlRpcStruct = {}): Promise<TReturn> {
+        if (this.ljXmlRpc === undefined) this.ljXmlRpc = await this.initXmlRpc();
+        return this.ljXmlRpc.methodCall(`LJ.XMLRPC.${method}`, [Object.assign({ version: 1 }, this.getAuthParams(), params)]).catch(err => {
             if (err instanceof XmlRpcFault) {
                 throw new LiveJournalApiError(err.faultString, err.code);
             }
@@ -141,13 +238,14 @@ export default class LiveJournalApi {
     // TODO addcomment
     // public addcomment(params: any): Promise<any> { return this.methodCall('addcomment'); }
 
+    // TODO convert
     /**
      * 
      * @param params 
      * @returns 
      */
     public checkFriends(params: LiveJournalCheckFriendsOptions): Promise<LiveJournalCheckFriendsResponse> {
-        return this.methodCall('checkfriends');
+        return this.methodCall('checkfriends', params);
     };
 
     /**
@@ -203,9 +301,9 @@ export default class LiveJournalApi {
      * @param itemId Article ID
      * @returns List of comments
      */
-    public getComments(params: LiveJournalGetCommentsOptions): Promise<LiveJournalGetCommentsResponse> {
-        // TODO convert response
-        return this.methodCall("getcomments", params);
+    public getComments(params: LiveJournalGetCommentsOptions): Promise<LiveJournalGetCommentsResponseBasic> {
+        return this.methodCall("getcomments", convertLiveJournalGetCommentsOptions(params))
+            .then(convertLiveJournalGetCommentsResponse);
     }
 
     /**
@@ -353,7 +451,7 @@ export default class LiveJournalApi {
      * @param params Params
      * @returns Session ID
      */
-    public sessionGenerate(expiration: "short" | "long" = "long", bindtoip: boolean = false): Promise<LiveJournalSessionGenerateResponse> {
+    public sessionGenerate(expiration: LiveJournalCookieDuration = "long", bindtoip: boolean = false): Promise<LiveJournalSessionGenerateResponse> {
         return this.methodCall('sessiongenerate', {
             Expiration: expiration,
             bindtoip: convertToLiveJournalApiBool(bindtoip)
@@ -380,6 +478,94 @@ export default class LiveJournalApi {
     // TODO votepoll
     // public votepoll(params: LiveJournalUpdateCommentsOptions): Promise<any> { return this.methodCall('votepoll'); }
 
+    protected async refreshCookie(force: boolean = false): Promise<LiveJournalCookieData> {
+        if (isValidCookie(this.cookie) && !force) {
+            return this.cookie;
+        } else {
+            this.verbose(`Creating new cookie session`);
+            const newSession = await this.sessionGenerate(this.cookieRefresh);
+            const newCookie: LiveJournalCookieData = {
+                ljSession: newSession.ljsession,
+                expires: newSession.expires,
+            };
+            this.verbose(newCookie);
+            this.cookie = newCookie;
+            return newCookie;
+        }
+    }
+
+    public async getLjSession(): Promise<string> {
+        return (await this.refreshCookie()).ljSession;
+    }
+
+    protected async ljWebFormPostRequest(url: string, params: { [key: string]: string | number | undefined; }): Promise<NodeJS.ReadableStream> {
+        this.verbose(`ljWebFormPostRequest to ${url}`);
+        const formItems = [];
+        for (let paramName in params) {
+            formItems.push(`${paramName}=${params[paramName]}`);
+        }
+        const formData = formItems.join('&');
+        this.verbose(formData);
+
+        return fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'accept': '*/*',
+                'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                ...(await this.getCookieHeader())
+            }
+        }).then(res => res.body);
+    }
+
+    protected async ljWebGetRequest(url: string, params: { [key: string]: string | number | undefined; }): Promise<NodeJS.ReadableStream> {
+        this.verbose(`ljWebFormPostRequest to ${url}`);
+        const formItems = [];
+        for (let paramName in params) {
+            formItems.push(`${paramName}=${params[paramName]}`);
+        }
+        const formData = formItems.join('&');
+        this.verbose(formData);
+
+        return fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'accept': '*/*',
+                'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                ...(await this.getCookieHeader())
+            }
+        }).then(res => res.body);
+    }
+
+    // Export methods, not part of the XMLRPC API
+
+    public getRawCommentsExport(params: any): Promise<NodeJS.ReadableStream> {
+        return this.ljWebFormPostRequest(`${LIVEJOURNAL_EXPORT_COMMENTS_URL}?authas=${this.staticAuthParams.username}`, convertLiveJournalExportOptions(params));
+    }
+
+
+    public getRawPostsExport(params: LiveJournalExportOptions): Promise<NodeJS.ReadableStream> {
+        return this.ljWebFormPostRequest(`${LIVEJOURNAL_EXPORT_POSTS_URL}?authas=${this.staticAuthParams.username}`, convertLiveJournalExportOptions(params));
+    }
+
+    public getPostsExport(params: LiveJournalExportOptionsCsv): Promise<LiveJournalExportEvent[]> {
+        return this.getRawPostsExport({
+            ...params,
+            format: 'csv',
+            field_itemid: true,
+            field_eventtime: true,
+            field_logtime: true,
+            field_subject: true,
+            field_event: true,
+            field_security: true,
+            field_allowmask: true,
+            field_currents: true
+        }).then(parsePostExportsCsv);
+    };
+
+    // Non-API methods
+
     /**
      * Get icons for a specific user.
      * This is not an official API method but instead scrapes the icons from the website, as there
@@ -387,20 +573,20 @@ export default class LiveJournalApi {
      * @param user 
      * @returns 
      */
-    public getIcons(user: string): Promise<LiveJournalIconInfo[]> {
-        // TODO cookie
-        const cookie = "";
-        return fetch(`https://www.livejournal.com/allpics.bml?user=${user}`, {
-            headers: { 'cookie': `ljsession=${cookie}` }
+    public async getIcons(user: string): Promise<LiveJournalIconInfo[]> {
+        return fetch(`${LIVEJOURNAL_URL}/allpics.bml?user=${user}`, {
+            headers: await this.getCookieHeader()
         }).then(res => res.text())
             .then(body => {
                 return getIconsFromHTML(body);
             });
     }
-
 }
 
-function addDays(date: Date, days: number): Date {
-    return new Date(date.valueOf() + (days * 86400000));
-};
+export function isValidCookie(cookie: Partial<LiveJournalCookieData>): cookie is LiveJournalCookieData {
+    return cookie.expires !== undefined
+        && cookie.ljSession !== undefined
+        && cookie.expires > new Date();
+}
 
+export default LiveJournalApi;

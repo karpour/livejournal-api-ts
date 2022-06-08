@@ -1,0 +1,1 @@
+export type LiveJournalCookieDuration = "short" | "long";

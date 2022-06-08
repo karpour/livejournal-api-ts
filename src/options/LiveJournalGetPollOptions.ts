@@ -1,6 +1,6 @@
 import { LiveJournalPollMode } from "../types/LiveJournalPollMode";
 
 export type LiveJournalGetPollOptions = {
-    mode?:LiveJournalPollMode;
+    mode?: LiveJournalPollMode;
     pollid: number;
-}
+};

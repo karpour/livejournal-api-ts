@@ -1,6 +1,6 @@
 import { LiveJournalPrivateMessageType } from "../types/LiveJournalPrivateMessageType";
 
-type LiveJournalGetInboxOptionsCommon = {
+export type LiveJournalGetInboxOptionsCommon = {
     /** Number of returned entries (from 0 to 100). The default is set to 100 */
     itemshow: number;
     /** Order number (from 0 to 100), starting with the first message in Inbox (from 0 to 100). By default, set to 0 */

@@ -1,5 +1,4 @@
-import { LiveJournalApiBool } from ".";
-import { LiveJournalPollMode } from "./LiveJournalPollMode";
+import { LiveJournalApiBool, LiveJournalPollMode } from ".";
 
 export type LiveJournalPoll = {
     pollid: number;

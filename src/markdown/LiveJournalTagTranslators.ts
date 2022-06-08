@@ -36,7 +36,7 @@ export class LiveJournalCutTranslator implements TranslatorConfig {
     public readonly preserveIfEmpty = true;
     public readonly surroundingNewlines = true;
     public postprocess(ctx: TranslatorPostProcessContext): string {
-        console.log(ctx.node.attributes);
+        //console.log(ctx.node.attributes);
         const cutText: string | undefined = (ctx.node.attributes as any).text;
         if (cutText) {
             return `---${cutText}---\n` + ctx.content;
@@ -53,7 +53,7 @@ export class LiveJournalPollTranslator implements TranslatorConfig {
     public readonly preserveIfEmpty = true;
     public readonly surroundingNewlines = true;
     public postprocess(ctx: TranslatorPostProcessContext): string {
-        console.log(ctx.node.attributes);
+        //console.log(ctx.node.attributes);
         const pollId: string | undefined = (ctx.node.attributes as any).text;
         if (pollId) {
             return `Poll ${pollId}`;
