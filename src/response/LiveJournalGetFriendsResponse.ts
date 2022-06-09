@@ -1,5 +1,5 @@
 import { Replace } from "../Replace";
-import { convertLiveJournalFriendGroup, LiveJournalFriend, LiveJournalFriendGroup, LiveJournalFriendGroupRaw } from "../types";
+import { convertLiveJournalFriend, convertLiveJournalFriendGroup, LiveJournalFriend, LiveJournalFriendGroup, LiveJournalFriendGroupRaw, LiveJournalFriendRaw } from "../types";
 
 export type LiveJournalGetFriendsResponse = {
     /** Array of descriptions for the user's Friends list */
@@ -19,9 +19,9 @@ export type LiveJournalGetFriendsResponseWithFriendGroupsAndFriendOfs = Omit<Liv
  */
 export type LiveJournalGetFriendsResponseRaw = Replace<LiveJournalGetFriendsResponse, {
     /** Array of descriptions for the user's Friends list */
-    friends: LiveJournalFriend[];
+    friends: LiveJournalFriendRaw[];
     /** Array of descriptions for users who friended the current user */
-    friendofs?: LiveJournalFriend[];
+    friendofs?: LiveJournalFriendRaw[];
     /** Array of descriptions for each user group */
     friendgroups?: LiveJournalFriendGroupRaw[];
 }>;
@@ -45,9 +45,9 @@ type ExplicitFriendGroups = {
  */
 export function convertLiveJournalGetFriendsResponse(resp: LiveJournalGetFriendsResponseRaw): LiveJournalGetFriendsResponse {
     const cv: LiveJournalGetFriendsResponse = {
-        friends: resp.friends
+        friends: resp.friends.map(convertLiveJournalFriend)
     };
-    if (resp.friendofs) cv.friendofs = resp.friendofs;
+    if (resp.friendofs) cv.friendofs = resp.friendofs.map(convertLiveJournalFriend);
     if (resp.friendgroups) cv.friendgroups = resp.friendgroups.map(convertLiveJournalFriendGroup);
     return cv;
 }

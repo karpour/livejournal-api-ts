@@ -2,6 +2,7 @@ import parse, { HTMLElement } from "node-html-parser";
 import { LiveJournalIconInfo, LiveJournalIconInfoDetails } from "./types";
 import { decode } from "html-entities";
 
+const RegExp_Icon_URL = /https:\/\/l-userpic\.livejournal\.com\/(\d+)\/(\d+)\/?/;
 
 export function getIconsFromHTML(htmlString: string): LiveJournalIconInfo[] {
     const root = parse(htmlString);
@@ -19,10 +20,16 @@ export function getIconsFromHTML(htmlString: string): LiveJournalIconInfo[] {
             // Image
             const userImgElement = td.childNodes[0] as HTMLElement;
             currentUserImg = userImgElement.attributes.src;
-            console.log(currentUserImg);
+            //console.log(currentUserImg);
         } else {
             if (currentUserImg) {
-                iconInfos.push(Object.assign(processTd(td), { url: currentUserImg }));
+                const regExpResult = RegExp_Icon_URL.exec(currentUserImg);
+                if (!regExpResult) throw new Error(`Failed to parse URL ${currentUserImg}`);
+                iconInfos.push(Object.assign(processTd(td), {
+                    url: currentUserImg,
+                    user_id: parseInt(regExpResult[2]),
+                    icon_id: parseInt(regExpResult[1])
+                }));
                 currentUserImg = null;
             }
         }
@@ -32,13 +39,20 @@ export function getIconsFromHTML(htmlString: string): LiveJournalIconInfo[] {
 
 function processTd(td: HTMLElement): LiveJournalIconInfoDetails {
     let iconInfo: LiveJournalIconInfoDetails = {
-        isdefault: false,
+        is_default: false,
+        user_id: 0,
+        icon_id: 0,
         keywords: []
     };
-    const items = td.childNodes.map(node => node.innerText).filter(item => item != '');
+    const items = td.childNodes.map(node => {
+        if (node instanceof HTMLElement && node.attrs['data-ljuser']) {
+            return node.attrs['data-ljuser'];
+        }
+        return node.innerText;
+    }).filter(item => item != '');
     if (!items.length) return iconInfo;
     if (items[0] == "Default") {
-        iconInfo.isdefault = true;
+        iconInfo.is_default = true;
         items.splice(0, 1);
     }
     if (!items.length) return iconInfo;
@@ -51,6 +65,6 @@ function processTd(td: HTMLElement): LiveJournalIconInfoDetails {
         }
     }
     if (!items.length) return iconInfo;
-    iconInfo.description = decode(items[0]).trim();
+    iconInfo.description = decode(items.join('')).trim();
     return iconInfo;
 }

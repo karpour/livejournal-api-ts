@@ -312,7 +312,7 @@ export class LiveJournalApi {
             formItems.push(`${paramName}=${params[paramName]}`);
         }
         const formData = formItems.join('&');
-        this.verbose(formData);
+        //this.verbose(formData);
 
         return fetch(url, {
             method: 'POST',
@@ -365,7 +365,6 @@ export class LiveJournalApi {
 
     // API Methods
 
-    // TODO addcomment
     // public addcomment(params: any): Promise<any> { return this.methodCall('addcomment'); }
 
     /**
@@ -386,25 +385,15 @@ export class LiveJournalApi {
         return this.methodCall<LiveJournalCheckSessionResponse>('checksession');
     };
 
-    // TODO consolecommand
     // public consolecommand(params: any): Promise<any> { return this.methodCall('consolecommand'); }
-    // TODO createpoll
     // public createpoll(params: any): Promise<any> { return this.methodCall('createpoll'); }
-    // TODO createrepost
     // public createrepost(params: any): Promise<any> { return this.methodCall('createrepost'); }
-    // TODO deletecomments
     // public deletecomments(params: any): Promise<any> { return this.methodCall('deletecomments'); }
-    // TODO deleterepost
     // public deleterepost(params: any): Promise<any> { return this.methodCall('deleterepost'); }
-    // TODO editcomment
     // public editcomment(params: any): Promise<any> { return this.methodCall('editcomment'); }
-    // TODO editevent
     // public editevent(params: any): Promise<any> { return this.methodCall('editevent'); }
-    // TODO editfriendgroups
     // public editfriendgroups(params: any): Promise<any> { return this.methodCall('editfriendgroups'); }
-    // TODO editfriends
     // public editfriends(params: any): Promise<any> { return this.methodCall('editfriends'); }
-    // TODO editpoll
     // public editpoll(params: any): Promise<any> { return this.methodCall('editpoll'); }
 
     /**
@@ -514,7 +503,6 @@ export class LiveJournalApi {
             .then(convertLiveJournalPoll);
     };
 
-    // TODO getpushlist
     // public getpushlist(params: any): Promise<any> { return this.methodCall('getpushlist'); }
 
     /**
@@ -527,7 +515,6 @@ export class LiveJournalApi {
             .then(response => response.comments.map(convertLiveJournalRecentComment));
     };
 
-    // TODO getrepoststatus
     // public getrepoststatus(params: any): Promise<any> { return this.methodCall('getrepoststatus'); }
 
     /**
@@ -558,17 +545,11 @@ export class LiveJournalApi {
             .then(convertLiveJournalUserProfile);
     };
 
-    // TODO postevent
     // public postevent(params: any): Promise<any> { return this.methodCall('postevent'); }
-    // TODO pushsubscriptions
     // public pushsubscriptions(params: any): Promise<any> { return this.methodCall('pushsubscriptions'); }
-    // TODO registerpush
     // public registerpush(params: any): Promise<any> { return this.methodCall('registerpush'); }
-    // TODO resetpushcounter
     // public resetpushcounter(params: any): Promise<any> { return this.methodCall('resetpushcounter'); }
-    // TODO sendmessage
     // public sendmessage(params: any): Promise<any> { return this.methodCall('sendmessage'); }
-    // TODO sessionexpire
     // public sessionexpire(params: any): Promise<any> { return this.methodCall('sessionexpire'); }
 
     /**
@@ -583,11 +564,8 @@ export class LiveJournalApi {
         }).then(resp => ({ ...resp, expires: addDays(new Date(), expiration == "long" ? 30 : 1) }));
     };
 
-    // TODO setmessageread
     // public setmessageread(params: any): Promise<any> { return this.methodCall('setmessageread'); }
-    // TODO syncitems
     // public syncitems(params: any): Promise<any> { return this.methodCall('syncitems'); }
-    // TODO unregisterpush
     // public unregisterpush(params: any): Promise<any> { return this.methodCall('unregisterpush'); }
 
     // TODO test updateComments
@@ -600,7 +578,6 @@ export class LiveJournalApi {
     //    return this.methodCall<LiveJournalUpdateCommentsResponse>('updatecomments', params);
     //};
 
-    // TODO votepoll
     // public votepoll(params: any): Promise<any> { return this.methodCall('votepoll'); }
 
 
@@ -663,7 +640,7 @@ export function throttled() {
                 if (this instanceof LiveJournalApi) {
                     if (this.throttle) {
                         const timeDiff = this.lastWebRequest + this.throttleDelay - Date.now();
-                        console.log(`timeDiff = ${timeDiff}ms`);
+                        //console.log(`timeDiff = ${timeDiff}ms`);
                         if (timeDiff > 0) {
                             this.lastWebRequest = Date.now() + timeDiff;
                             return new Promise((resolve) => {

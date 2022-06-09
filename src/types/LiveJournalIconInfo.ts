@@ -5,7 +5,9 @@ export type LiveJournalIconInfoUrl = {
 };
 
 export type LiveJournalIconInfoDetails = {
-    isdefault: boolean;
+    user_id: number;
+    icon_id: number;
+    is_default: boolean;
     keywords: string[];
     description?: string;
 };
