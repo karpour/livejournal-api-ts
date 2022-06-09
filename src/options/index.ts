@@ -1,5 +1,4 @@
 export * from './LiveJournalApiOptions';
-export * from '../LiveJournalApiError';
 export * from './LiveJournalCheckFriendsOptions';
 export * from './LiveJournalGetEventsOptions';
 export * from './LiveJournalGetFriendsOptions';
@@ -10,3 +9,5 @@ export * from './LiveJournalUpdateCommentsOptions';
 export * from './LiveJournalGetRecentCommentsOptions';
 export * from './LiveJournalGetInboxOptions';
 export * from './LiveJournalExportOptions';
+export * from './LiveJournalGetUserProfileOptions';
+export * from './LiveJournalApiOptions';

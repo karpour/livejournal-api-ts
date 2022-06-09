@@ -21,3 +21,4 @@ export type LiveJournalGetRecentCommentsOptionsRaw = {
      * @default 0 */
     parseljtags?: LiveJournalApiBool;
 };
+

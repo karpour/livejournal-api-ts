@@ -1,10 +1,9 @@
-export type LiveJournalExportOptionsRaw = {
-    what: 'journal',
-    year: string,
-    month: string,
-    format: 'xml' | 'csv',
-    header?: 'on',
-    encid: '2',
+import { Replace } from "../Replace";
+
+/**
+ * @internal
+ */
+export type LiveJournalExportOptionsRaw = Replace<LiveJournalExportOptions, {
     field_itemid?: 'on',
     field_eventtime?: 'on',
     field_logtime?: 'on',
@@ -13,8 +12,14 @@ export type LiveJournalExportOptionsRaw = {
     field_security?: 'on',
     field_allowmask?: 'on',
     field_currents?: 'on';
+    year: string,
+    month: string,
+}> & {
+    header?: 'on',
     notranslation?: 'on';
-};
+    encid: '2',
+    what: 'journal',
+}
 
 export type LiveJournalExportOptions = {
     year: number,
@@ -32,6 +37,9 @@ export type LiveJournalExportOptions = {
 
 export type LiveJournalExportOptionsCsv = Pick<LiveJournalExportOptions, 'year' | 'month'>;
 
+/**
+ * @internal
+ */
 export function convertLiveJournalExportOptions(options: LiveJournalExportOptions): LiveJournalExportOptionsRaw {
     const newOpts: LiveJournalExportOptionsRaw = {
         what: 'journal',

@@ -1,13 +1,3 @@
-
-/*export type LiveJournalJournalType =
-typeof LIVEJOURNAL_JOURNAL_TYPE_USER |
-typeof LIVEJOURNAL_JOURNAL_TYPE_COMMUNITY |
-typeof LIVEJOURNAL_JOURNAL_TYPE_NEWS |
-typeof LIVEJOURNAL_JOURNAL_TYPE_SHARED |
-typeof LIVEJOURNAL_JOURNAL_TYPE_SYNDICATED |
-typeof LIVEJOURNAL_JOURNAL_TYPE_RENAMED |
-typeof LIVEJOURNAL_JOURNAL_TYPE_OPENID;*/
-
 export enum LiveJournalJournalType {
     /** User journal (P) – a journal of a separate user ("personal"). Only the journal owner can post in it */
     USER = 'P',

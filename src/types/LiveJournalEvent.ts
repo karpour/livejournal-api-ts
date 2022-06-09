@@ -1,23 +1,25 @@
-import { convertLiveJournalApiBool, LiveJournalApiBool } from "./LiveJournalApiBool";
-import { LiveJournalDateString } from "./LiveJournalDateString";
+import { convertLiveJournalApiBool, LiveJournalApiBool, convertLiveJournalDateString, LiveJournalDateString } from ".";
+import { Replace } from "../Replace";
 
-export type LiveJournalEventRaw = {
+export type LiveJournalEventSecurity = "public" | "private" | "usemask";
+
+export type LiveJournalEvent = {
     /** Entry internal identifier */
     itemid: number,
     /** Entry subject */
     subject: string,
     /** Entry body */
-    event: string | Buffer,
+    event: string,
     /**  */
     ditemid: number,
-    /** Entry publication time (in “yyyy-mm-dd hh:mm:ss” format) */
-    eventtime: LiveJournalDateString,
-    /** Entry properties */
-    props: LiveJournalEventPropsRaw,
+    /** User-defined entry */
+    eventtime: Date,
+    /** Props */
+    props: LiveJournalEventProps,
     /**  */
-    can_comment: LiveJournalApiBool,
-    /** Actual Unix-time of the last entry change on the server (server time) */
-    logtime: LiveJournalDateString,
+    can_comment: boolean,
+    /** Actual time of the last entry change on the server (server time) */
+    logtime: Date,
     /** A random number from 0 to 255 generated at entry creation used as the lower byte in the entry external identifier */
     anum: number,
     /** Link (URL) to an entry */
@@ -27,7 +29,7 @@ export type LiveJournalEventRaw = {
     /** Number of replies to an entry */
     reply_count: number;
     /** Access type ("public" – public entry visible to all, "private" – private entry, visible to the journal owner only) */
-    security?: "public" | "private" | "usemask";
+    security?: LiveJournalEventSecurity;
     /** Bit mask defining user groups that will have access to a 
      * posted entry. A 32-bit unsigned integer that defines the post visibility to user 
      * friends and groups. 0 bit stands for all user friends, bits ranging from 1 to 30 
@@ -36,22 +38,33 @@ export type LiveJournalEventRaw = {
     allowmask: number;
 };
 
-export type LiveJournalEventExtra = {
-    /** User-defined entry */
-    eventtime: Date,
-    /** Props */
-    props: LiveJournalEventProps,
+/** @internal */
+export type LiveJournalEventRaw = Replace<LiveJournalEvent, {
+    /** Entry publication time (in "yyyy-mm-dd hh:mm:ss" format) */
+    eventtime: LiveJournalDateString,
+    /** Entry properties */
+    props: LiveJournalEventPropsRaw,
     /**  */
-    can_comment: boolean,
-    /** Actual time of the last entry change on the server (server time) */
-    logtime: Date,
+    can_comment: LiveJournalApiBool,
+    /** Actual Unix-time of the last entry change on the server (server time) */
+    logtime: LiveJournalDateString,
     /** Entry body */
-    event: string,
-};
+    event: string | Buffer,
+}>;
 
-export type LiveJournalEvent = Omit<LiveJournalEventRaw, keyof LiveJournalEventExtra> & LiveJournalEventExtra;
+/** @internal */
+export function convertLiveJournalEventRaw(event: LiveJournalEventRaw): LiveJournalEvent {
+    return {
+        ...event,
+        can_comment: convertLiveJournalApiBool(event.can_comment),
+        eventtime: convertLiveJournalDateString(event.eventtime),
+        props: convertLiveJournalEventProps(event.props),
+        logtime: convertLiveJournalDateString(event.logtime),
+        event: event.event instanceof Buffer ? event.event.toString() : event.event
+    };
+}
 
-export type LiveJournalEventPropsRaw = {
+export type LiveJournalEventProps = {
     /** Admin Content Flag Internal flag describing entry properties. Set by an administrator */
     admin_content_flag?: string;
     /** Adult Content Flag Adult content flag (no adult content, not recommended for users under the age of 14, explicit adult content) */
@@ -69,18 +82,19 @@ export type LiveJournalEventPropsRaw = {
     /** Current Music Music the user is listening to when an entry is posted */
     current_music?: string;
     /** Has screened replies Set to true, when an entry has screened replies */
-    hasscreened?: LiveJournalApiBool;
+    hasscreened: boolean;
     /** Update interface Interface used for last update */
     interface?: string;
     /** Back-dated Set to true when an entry cannot be displayed in the Friends page */
-    opt_backdated?: LiveJournalApiBool;
-    /**  Don't Allow Comments Set to true, when readers cannot comment on the entry; */
-    opt_nocomments?: LiveJournalApiBool;
+    opt_backdated: boolean;
+    /**  Don't Allow Comments Set to true, when readers cannot comment on the entry */
+    opt_nocomments: boolean;
     /** Don't email comments Set to true, when an entry author does not want to receive replies to their entry by email */
-    opt_noemail?: LiveJournalApiBool;
-    /** Don't Auto-Format Set to true when an entry contains HTML tags and is not subject to auto-format; */
-    opt_preformatted?: LiveJournalApiBool;
-    /** Custom Screening Level Defines screening level for new replies to a current entry.
+    opt_noemail: boolean;
+    /** Don't Auto-Format Set to true when an entry contains HTML tags and is not subject to auto-format */
+    opt_preformatted: boolean;
+    /**
+     * Screening level for new replies to a current entry.
      * By default, the general level set for the whole journal. 
      * Available options are:
      *   N = screen no replies
@@ -93,7 +107,7 @@ export type LiveJournalEventPropsRaw = {
     /** Personifi language Automatic language definition by Personifi system */
     personifi_lang?: string;
     /** Personifi tags Personifi categories / tags of an entry */
-    personifi_tags?: string;
+    personifi_tags: string[];
     /** Personifi word count Entry length defined by Personifi integer picture_keyword  Picture Keyword Keyword of a picture chosen by user as an entry avatar */
     personifi_word_count?: string;
     /** Writer's block ID Identifier of the Question of the Day (answered by the retrieved entry) */
@@ -111,72 +125,61 @@ export type LiveJournalEventPropsRaw = {
     /** Syndication item link URL Original link to a syndication item */
     syn_link?: string;
     /** Tag List List of tags separated by comma */
-    taglist?: string;
-    /** Unknown 8 - bit text True, when the text contains8 - bit data not encoded in UTF-8 */
-    unknown8bit?: LiveJournalApiBool;
+    taglist: string[];
+    /** true if the text contains 8-bit data not encoded in UTF-8 */
+    unknown8bit: boolean;
     /** Support Request ID for Unsuspension Request Identifier of a request to the support service / abuse team for entry unsuspension. Set to "Undef" or "0" when no such request is pending at the moment */
     unsuspend_supportid?: number;
     /** Composed in RTE True, when an entry was composed in the rich text editor */
-    used_rte?: LiveJournalApiBool;
+    used_rte: boolean;
     /** User Agent Client type (web / mobile / sip / etc) used to create an entry */
     useragent?: string;
     /** Verticals List List of verticals(topics) to which an entry belongs, separated by comma */
     verticals_list?: string;
-
+    /** Number of replies */
     replycount?: number;
+    /**  */
     give_features?: number;
+    /** Opengraph image url (?) */
     og_image?: string;
-    guess_who_back?: LiveJournalApiBool;
+    /**  */
+    guess_who_back?: boolean;
 };
 
-export type LiveJournalEventExtraProps = {
+/** @internal */
+export type LiveJournalEventPropsRaw = Replace<LiveJournalEventProps, {
     /** Tag List List of tags separated by comma */
-    taglist: string[];
+    taglist?: string;
     /** Personifi tags Personifi categories / tags of an entry */
-    personifi_tags: string[];
+    personifi_tags?: string;
     /** Has screened replies Set to true, when an entry has screened replies */
-    hasscreened: boolean;
+    hasscreened?: LiveJournalApiBool;
     /** Back-dated Set to true when an entry cannot be displayed in the Friends page */
-    opt_backdated: boolean;
+    opt_backdated?: LiveJournalApiBool;
     /**  Don't Allow Comments Set to true, when readers cannot comment on the entry; */
-    opt_nocomments: boolean;
+    opt_nocomments?: LiveJournalApiBool;
     /** Don't email comments Set to true, when an entry author does not want to receive replies to their entry by email */
-    opt_noemail: boolean;
+    opt_noemail?: LiveJournalApiBool;
     /** Don't Auto-Format Set to true when an entry contains HTML tags and is not subject to auto-format; */
-    opt_preformatted: boolean;
-    /** Unknown 8 - bit text True, when the text contains8 - bit data not encoded in UTF-8 */
-    unknown8bit: boolean;
+    opt_preformatted?: LiveJournalApiBool;
+    /** true if the text contains 8-bit data not encoded in UTF-8 */
+    unknown8bit?: LiveJournalApiBool;
     /** Composed in RTE True, when an entry was composed in the rich text editor */
-    used_rte: boolean;
-};
+    used_rte?: LiveJournalApiBool;
+    /**  */
+    guess_who_back?: LiveJournalApiBool;
+}>;
 
-export type LiveJournalEventProps = Omit<LiveJournalEventPropsRaw, keyof LiveJournalEventExtraProps> & LiveJournalEventExtraProps;
-
-export type LiveJournalExportEvent = Pick<LiveJournalEvent,
-    'itemid' |
-    'eventtime' |
-    'logtime' |
-    'subject' |
-    'event' |
-    'security' |
-    'allowmask'> & {
-        /** Current Mood Current user mood defined at posting */
-        current_mood?: string;
-        /** Current Music Music the user is listening to when an entry is posted */
-        current_music?: string;
-    };
-
-export function convertLiveJournalDateString(ljDateString: LiveJournalDateString): Date {
-    return new Date(ljDateString);
-}
-
+/** @internal */
 export function convertLiveJournalTagsList(list: string | undefined): string[] {
     if (!list) return [];
     return list.split(/,\s*/).map(item => item.trim());
 }
 
+/** @internal */
 export function convertLiveJournalEventProps(ljProps: LiveJournalEventPropsRaw): LiveJournalEventProps {
-    return Object.assign<LiveJournalEventPropsRaw, LiveJournalEventExtraProps>(ljProps, {
+    return {
+        ...ljProps,
         taglist: convertLiveJournalTagsList(ljProps.taglist),
         personifi_tags: convertLiveJournalTagsList(ljProps.personifi_tags),
         hasscreened: convertLiveJournalApiBool(ljProps.hasscreened),
@@ -186,15 +189,7 @@ export function convertLiveJournalEventProps(ljProps: LiveJournalEventPropsRaw):
         opt_preformatted: convertLiveJournalApiBool(ljProps.opt_preformatted),
         unknown8bit: convertLiveJournalApiBool(ljProps.unknown8bit),
         used_rte: convertLiveJournalApiBool(ljProps.used_rte),
-    });
+        guess_who_back: convertLiveJournalApiBool(ljProps.guess_who_back),
+    };
 }
 
-export function convertLiveJournalEventRaw(event: LiveJournalEventRaw): LiveJournalEvent {
-    return Object.assign(event, {
-        can_comment: convertLiveJournalApiBool(event.can_comment),
-        eventime: convertLiveJournalDateString(event.eventtime),
-        props: convertLiveJournalEventProps(event.props),
-        logtime: convertLiveJournalDateString(event.logtime),
-        event: event.event instanceof Buffer ? event.event.toString() : event.event
-    });
-}

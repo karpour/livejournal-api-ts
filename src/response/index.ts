@@ -12,3 +12,5 @@ export * from './LiveJournalSessionGenerateResponse';
 export * from './LiveJournalUpdateCommentsResponse';
 export * from './LiveJournalGetFriendsOfResponse';
 export * from './LiveJournalGetCommentsResponse';
+export * from './LiveJournalGetDayCountsResponse';
+export * from './LiveJournalGetUserTagsResponse';

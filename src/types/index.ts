@@ -18,3 +18,5 @@ export * from './LiveJournalPoll';
 export * from './LiveJournalCookieData';
 export * from './LiveJournalCookieDuration';
 export * from './LiveJournalPollMode';
+export * from './LiveJournalEvent';
+export * from './LiveJournalExportEvent';

@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "rm -rf ./dist && tsc",
-    "doc": "typedoc --exclude \"./**/*.spec.ts\" --out docs src"
+    "doc": "typedoc --excludeInternal --exclude \"./**/*.spec.ts\" --out docs src"
   },
   "keywords": [
     "livejournal",

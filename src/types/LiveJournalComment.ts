@@ -1,4 +1,5 @@
-import { LiveJournalDateString } from "./LiveJournalDateString";
+import { convertLiveJournalApiBool, LiveJournalApiBool, LiveJournalDateString } from ".";
+import { Replace } from "../Replace";
 
 /** 
  * Reply status. Available options are:
@@ -10,6 +11,7 @@ import { LiveJournalDateString } from "./LiveJournalDateString";
  */
 export type LiveJournalCommentState = 'F' | 'S' | 'A' | 'D';
 
+/** @internal */
 export type LiveJournalCommentRaw = {
     /** Internal identifier of a parent reply */
     parentdtalkid: number,
@@ -33,7 +35,7 @@ export type LiveJournalCommentRaw = {
     /** Comment ID */
     dtalkid: number,
     /**  */
-    is_show: number,
+    is_show: LiveJournalApiBool,
     /** Name of a reply author */
     postername: string,
     /**  */
@@ -41,18 +43,19 @@ export type LiveJournalCommentRaw = {
     /**  */
     datepost: LiveJournalDateString,
     /**  */
-    is_loaded: number,
+    is_loaded: LiveJournalApiBool,
     /** Unix-time of reply posting */
     datepostunix: number,
 };
 
-
+/** @internal */
 export type LiveJournalRecentCommentRaw = {
     /** Reply subject  */
     subject: string;
     /** Reply author ID  */
     posterid: number;
-    /** Reply status. Available options are: 
+    /** 
+     * Reply status. Available options are: 
      * F for frozen
      * S for secure
      * A for active (not frozen, secure or deleted)
@@ -70,7 +73,7 @@ export type LiveJournalRecentCommentRaw = {
     /** Reserved for future use, currently set to "L" */
     nodetype: 'L';
     /**  */
-    nodeid: number;
+    nodeid?: number;
     /** Unix-time of reply posting */
     datepostunix: number;
     /** Unix-time of reply posting */
@@ -82,7 +85,7 @@ export type LiveJournalRecentCommentRaw = {
 };
 
 export type LiveJournalComment = {
-    /** Reply subject  */
+    /** Reply subject */
     subject?: string;
     /** Internal identifier of a parent reply */
     parentdtalkid: number,
@@ -105,7 +108,7 @@ export type LiveJournalComment = {
     /** Comment ID */
     dtalkid?: number,
     /**  */
-    is_show?: number,
+    is_show?: boolean,
     /** Name of a reply author */
     postername: string,
     /**  */
@@ -113,7 +116,9 @@ export type LiveJournalComment = {
     /** Date that the comment was posted on */
     datepost: Date,
     /**  */
-    is_loaded?: number,
+    is_loaded?: boolean,
+    /**  */
+    nodeid?: number;
     /** Unix-time of reply posting */
     datepostunix: number,
     /** Userpic url of poster */
@@ -121,8 +126,6 @@ export type LiveJournalComment = {
     /** Reply internal identifier */
     jtalkid?: number;
 };
-
-
 
 export function convertLiveJournalComment(comment: LiveJournalCommentRaw): LiveJournalComment {
     return {
@@ -133,11 +136,11 @@ export function convertLiveJournalComment(comment: LiveJournalCommentRaw): LiveJ
         text: comment.body,
         level: comment.level,
         dtalkid: comment.dtalkid,
-        is_show: comment.is_show,
+        is_show: convertLiveJournalApiBool(comment.is_show),
         postername: comment.postername,
         real_level: comment.real_level == '' ? undefined : comment.real_level,
         datepost: new Date(comment.datepost),
-        is_loaded: comment.is_loaded,
+        is_loaded: convertLiveJournalApiBool(comment.is_loaded),
         datepostunix: comment.datepostunix,
     };
 }
@@ -152,6 +155,7 @@ export function convertLiveJournalRecentComment(comment: LiveJournalRecentCommen
         postername: comment.postername,
         datepost: new Date(comment.datepost),
         datepostunix: comment.datepostunix,
-        poster_userpic_url: comment.poster_userpic_url
+        poster_userpic_url: comment.poster_userpic_url,
+        nodeid: comment.nodeid,
     };
 }

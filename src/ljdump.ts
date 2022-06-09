@@ -5,7 +5,7 @@ import https from "https";
 import {
     LiveJournalEvent,
     LiveJournalFriend,
-    LiveJournalFriendGroupInfo,
+    LiveJournalFriendGroup,
     LiveJournalUserProfile
 } from "./types";
 import convertLjPostToMarkdown from "./markdown/convertLjPostToMarkdown";
@@ -135,13 +135,13 @@ async function getFriendOf(): Promise<LiveJournalFriend[]> {
     }
 }
 
-async function getFriendGroups(): Promise<LiveJournalFriendGroupInfo[]> {
+async function getFriendGroups(): Promise<LiveJournalFriendGroup[]> {
     if (existsSync(FRIENDGROUPS_FILE)) {
         console.log(`Reading friend groups from ${FRIENDGROUPS_FILE} `);
-        return JSON.parse(readFileSync(FRIENDGROUPS_FILE).toString()) as LiveJournalFriendGroupInfo[];
+        return JSON.parse(readFileSync(FRIENDGROUPS_FILE).toString()) as LiveJournalFriendGroup[];
     } else {
         console.log("Importing friend groups");
-        const friendgroups: LiveJournalFriendGroupInfo[] = (await ljApi.getFriends({ includegroups: true })).friendgroups;
+        const friendgroups: LiveJournalFriendGroup[] = (await ljApi.getFriends({ includegroups: true })).friendgroups;
         writeFileSync(FRIENDGROUPS_FILE, JSON.stringify(friendgroups, null, 4));
         return friendgroups;
     }
@@ -154,11 +154,10 @@ async function getUserProfile(): Promise<LiveJournalUserProfile> {
     } else {
         console.log("Importing user profile");
         const userprofile: LiveJournalUserProfile = await ljApi.getUserProfile({
-            getcaps: 1,
-            getmenus: 1,
-            getmoods: 1,
-            getpickws: 1,
-            getpickwurls: 1
+            getcaps: true,
+            getmenus: true,
+            getpickws: true,
+            getpickwurls: true
         });
         writeFileSync(USERPROFILE_FILE, JSON.stringify(userprofile, null, 4));
         return userprofile;

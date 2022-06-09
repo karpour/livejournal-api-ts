@@ -1,8 +1,4 @@
 
-export type LiveJournalGetUserTagsResponse = {
-    tags: LiveJournalUserTag[];
-};
-
 export type LiveJournalUserTag = {
     /** Tag name*/
     name: string;

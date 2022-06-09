@@ -1,9 +1,9 @@
 import { convertLiveJournalEventProps, LiveJournalEventProps, LiveJournalEventPropsRaw } from "./LiveJournalEvent";
 import { convertLiveJournalApiBool, LiveJournalApiBool } from "./LiveJournalApiBool";
 import { LiveJournalJournalType } from "./LiveJournalJournalType";
+import { Replace } from "../Replace";
 
-
-export type LiveJournalFriendsEventRaw = {
+export type LiveJournalFriendsEvent = {
     /** Userpic description */
     userpic: '' | {
         /** Picture identifier */
@@ -31,34 +31,30 @@ export type LiveJournalFriendsEventRaw = {
     postername: string;
     /** Link (URL) to the journal */
     journalurl: string;
-    /** Actual Unix-time of the last entry change on the server (server time) */
-    logtime: number;
+    /** Time of the last entry change on the server (server time) */
+    logtime: Date;
     /** Number of replies to an entry */
     reply_count: number;
-    /** Whether Captchа must be entered to make a reply ("1" – yes, "0" - no) */
-    do_captcha?: LiveJournalApiBool;
+    /** Whether Captchа must be entered to make a reply */
+    do_captcha: boolean;
     /** Type of user/journal that created an entry */
     postertype: LiveJournalJournalType;
     /** Entry properties */
-    props: LiveJournalEventPropsRaw;
+    props: LiveJournalEventProps;
     /** Access type ("public" – public entry visible to all, "private" – private entry, visible to the journal owner only) */
     security?: "public" | "private" | "usemask";
     /** Event text */
     event_raw: string;
 };
 
-
-export type LiveJournalFriendsEventExtra = {
+export type LiveJournalFriendsEventRaw = Replace<LiveJournalFriendsEvent, {
     /** Actual Unix-time of the last entry change on the server (server time) */
-    logtime: Date;
-    /** Whether Captchа must be entered to make a reply */
-    do_captcha?: boolean;
+    logtime: number;
+    /** Whether Captchа must be entered to make a reply ("1" – yes, "0" - no) */
+    do_captcha?: LiveJournalApiBool;
     /** Entry properties */
-    props: LiveJournalEventProps;
-};
-
-export type LiveJournalFriendsEvent = Omit<LiveJournalFriendsEventRaw, keyof LiveJournalFriendsEventExtra> & LiveJournalFriendsEventExtra;
-
+    props: LiveJournalEventPropsRaw;
+}>;
 
 export function convertLiveJournalFriendsEvent(event: LiveJournalFriendsEventRaw): LiveJournalFriendsEvent {
     return Object.assign(event, {

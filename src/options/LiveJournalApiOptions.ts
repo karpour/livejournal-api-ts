@@ -23,7 +23,7 @@ export type LiveJournalApiOptionsCommon = {
     verbose?: boolean;
     /**
      * Throttle API requests to LiveJournal API
-     * If true, the API client will send a maximum of {@link LiveJournalApiOptionsCommon.trottleRequestsPerSecond} requests per second
+     * If true, the API client will send a maximum of {@link LiveJournalApiOptionsCommon.maxRequestsPerSecond} requests per second
      * @default false
      */
     throttle?: boolean;
@@ -31,7 +31,7 @@ export type LiveJournalApiOptionsCommon = {
      * Maximum requests per seconds, applicable if {@link LiveJournalApiOptionsCommon.throttle} is true
      * @default 5
      */
-    trottleRequestsPerSecond?: number;
+    maxRequestsPerSecond?: number;
 };
 
 export type LiveJournalApiAuthOptionsClear = {

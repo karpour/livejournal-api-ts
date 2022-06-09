@@ -1,25 +1,25 @@
+import { Replace } from "../Replace";
 import { convertLiveJournalApiBool, LiveJournalApiBool } from "./LiveJournalApiBool";
 import { LiveJournalFriendGroupNumber } from "./LiveJournalFriendGroupNumber";
 
-export type LiveJournalFriendGroupRaw = {
-    /** Indicates whether a group is public (1) or private (0) */
-    public: LiveJournalApiBool;
+export type LiveJournalFriendGroup = {
+    /** bit number assigned to a friend group (1 to 30) */
+    id: LiveJournalFriendGroupNumber;
     /** Friend group name */
     name: string;
-    /** Bit number assigned to a friend group (1 to 30) */
-    id: LiveJournalFriendGroupNumber;
     /** Group number for sorting (from 0 to 255) */
     sortorder: number;
+    /* Indicates whether a group is public */
+    public: boolean;
 };
 
-export type LiveJournalFriendGroupExtra = {
-    /** Indicates whether a group is public (true) or private (false) */
-    public: true;
-};
+/** @internal */
+export type LiveJournalFriendGroupRaw = Replace<LiveJournalFriendGroup, {
+    /** Indicates whether a group is public (1) or private (0) */
+    public: LiveJournalApiBool;
+}>;
 
-
-export type LiveJournalFriendGroup = Omit<LiveJournalFriendGroupRaw, keyof LiveJournalFriendGroupExtra> & LiveJournalFriendGroupExtra;
-
+/** @internal */
 export function convertLiveJournalFriendGroup(friendGroupRaw: LiveJournalFriendGroupRaw): LiveJournalFriendGroup {
-    return Object.assign({ ...friendGroupRaw }, { public: convertLiveJournalApiBool(friendGroupRaw.public) });
+    return { ...friendGroupRaw, public: convertLiveJournalApiBool(friendGroupRaw.public) };
 }

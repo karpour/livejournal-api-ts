@@ -1,4 +1,5 @@
-import { LiveJournalApiBool } from "./LiveJournalApiBool";
+import { convertLiveJournalApiBool, LiveJournalApiBool } from "./LiveJournalApiBool";
+import { Replace } from "../Replace";
 
 export type LiveJournalUserGroupDescription = {
     /** flag indicating whether a group is public or private */
@@ -29,22 +30,7 @@ export type LiveJournalMenuItemDefinition = {
     sub?: LiveJournalMenuItemDefinition[];
 };
 
-export type LiveJournalGetUserProfileOptions = {
-    /** allows identifying the version of a client that requests data. Allows the LiveJournal server to collect user statistics. The following string formats are supported Platform-ProductName/ClientVersionMajor.Minor.Rev, e.g., Win32-MFC/1.2.7 or GTK2-LogJam: 4.5.3 */
-    clientversion?: string;
-    /** to obtain the whole mood list, set the value to 0. When the value is different (above 0), the server returns the list of moods having ID's above the defined value */
-    getmoods?: LiveJournalApiBool;
-    /** when true (1), the server returns a list (tree) of navigations to the web-menu */
-    getmenus?: LiveJournalApiBool;
-    /** to obtain the list of userpic keywords, set the value to 1  */
-    getpickws?: LiveJournalApiBool;
-    /** to obtain the list of links to userpics (URL) as well as userpic keywords, set the key value to 1 */
-    getpickwurls?: LiveJournalApiBool;
-    /** to get all capability classes of the account, set the value to 1 */
-    getcaps?: LiveJournalApiBool;
-};
-
-enum LIVEJOURNAL_ACCOUNT_CAPABILITIES {
+export enum LiveJournalAccountCapabilites {
     /** new user */
     NEW_USER = 0x01,
     /** normal user */
@@ -79,7 +65,7 @@ enum LIVEJOURNAL_ACCOUNT_CAPABILITIES {
     PLUS = 0x8000,
 }
 
-export type LiveJournalUserProfile = {
+export type LiveJournalUserProfileRaw = {
     /** Username message (string) – message that notifies a user about software updates, problems with their account, etc.  */
     username: string;
     /** Username message (string) – message that notifies a user about software updates, problems with their account, etc.  */
@@ -93,7 +79,7 @@ export type LiveJournalUserProfile = {
     moods: LiveJournalMoodDefinition[];
     /** Array containing userpic keywords. The array is returned when getpickws = 1 */
     pickws?: string[];
-    /** Array containing links (URL) to usepics */
+    /** Array containing links (URL) to userpics */
     pickwurls: string[];
     /** Link (URL) to a default userpic. The value is returned when getpickwurls = 1 */
     defaultpicurl?: string;
@@ -101,10 +87,15 @@ export type LiveJournalUserProfile = {
     fastserver?: LiveJournalApiBool;
     /** User identifier*/
     userid: number;
-    /** Array containing menu items in the order of display in the corresponding web-menu of the LiveJournal user application.
+    /** 
+     * Array containing menu items in the order of display in the corresponding web-menu of the LiveJournal user application.
      * The array is returned when the getmenus structure component is set to 1 */
     menus: LiveJournalMenuItemDefinition[];
-    /** User account capability class defined by bit-mapped fields within a 2-byte integer. The key is returned when the getcaps structure component is set to 1 */
+    /** 
+     * User account capability class defined by bit-mapped fields within a 2-byte integer. 
+     * The key is returned when the getcaps structure component is set to true
+     * See {@link LiveJournalAccountCapabilites}
+     */
     caps?: number;
     /**  */
     is_validated?: LiveJournalApiBool;
@@ -118,4 +109,17 @@ export type LiveJournalUserProfile = {
     identity_url?: string;
 };
 
+export type LiveJournalUserProfile = Replace<LiveJournalUserProfileRaw, {
+    /** When true, a client can enter "Cookie: ljfastserver=1" in HTTP-header for priority request processing */
+    fastserver?: boolean;
+    /**  */
+    is_validated?: boolean;
+}>;
 
+export function convertLiveJournalUserProfile(profile: LiveJournalUserProfileRaw): LiveJournalUserProfile {
+    return {
+        ...profile,
+        fastserver: convertLiveJournalApiBool(profile.fastserver),
+        is_validated: convertLiveJournalApiBool(profile.is_validated),
+    };
+}
