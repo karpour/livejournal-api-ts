@@ -20,3 +20,4 @@ export * from './LiveJournalCookieDuration';
 export * from './LiveJournalPollMode';
 export * from './LiveJournalEvent';
 export * from './LiveJournalExportEvent';
+export * from './LiveJournalSecurity';

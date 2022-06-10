@@ -1,5 +1,5 @@
 import { XmlRpcClient, XmlRpcFault, XmlRpcStruct, XmlRpcValue } from "@foxglove/xmlrpc";
-import { existsSync, readFileSync } from "fs";
+import { createWriteStream, existsSync, readFileSync } from "fs";
 import fetch from "node-fetch";
 
 import {
@@ -93,16 +93,18 @@ import { createExportEventGenerator, parsePostExportsCsv } from "./parsePostExpo
 import { addDays } from "./addDays";
 import { createYearMonthGenerator } from "./createYearMonthGenerator";
 import { getIconsFromHTML } from "./getIconsFromHTML";
+import { pipeline } from "stream/promises";
 
 export const LIVEJOURNAL_URL = 'https://www.livejournal.com';
 export const LIVEJOURNAL_EXPORT_POSTS_URL = `${LIVEJOURNAL_URL}/export_do.bml`;
 export const LIVEJOURNAL_EXPORT_COMMENTS_URL = `${LIVEJOURNAL_URL}/export_comments.bml`;
 export const LIVEJOURNAL_XMLRPC_URL = `${LIVEJOURNAL_URL}/interface/xmlrpc`;
+export const LIVEJOURNAL_JSONRPC_URL = `https://l-api.livejournal.com/__api/`;
 
 /** Earliest data to check for posts */
 export const LIVEJOURNAL_START_DATE = new Date("1999-04-01");
 
-export const LIVEJOURNAL_API_METHODS = [
+export const LIVEJOURNAL_XMLRPC_API_METHODS = [
     'addcomment',
     'checkfriends',
     'checksession',
@@ -145,7 +147,34 @@ export const LIVEJOURNAL_API_METHODS = [
     'updatecomments',
     'votepoll',
 ] as const;
-export type LiveJournalApiMethod = typeof LIVEJOURNAL_API_METHODS[number];
+export type LiveJournalXmlRpcApiMethod = typeof LIVEJOURNAL_XMLRPC_API_METHODS[number];
+
+const LIVEJOURNAL_JSONRPC_API_METHODS = [
+    'browse.get_categories',
+    'browse.get_communities',
+    'browse.get_posts',
+    'comment.get_thread',
+    'discovery.author_posts',
+    'discovery.get_categories',
+    'discovery.get_feed',
+    'discovery.get_item',
+    'discovery.suggest',
+    'discovery.today',
+    'gifts.get_all_gifts',
+    'gifts.get_gifts_categories',
+    'homepage.get_categories',
+    'homepage.get_rating',
+    'latest.get_entries',
+    'sitemessage.get_message',
+    'writers_block.get_list',
+    'profile.get_friends',
+    'notifications.read_all_events',
+    'notifications.get_events',
+    'photo.get_albums',
+    'user.get',
+
+] as const;
+export type LiveJournalJsonRpcApiMethod = typeof LIVEJOURNAL_JSONRPC_API_METHODS[number];
 
 
 export type LiveJournalApiAuthParams = {
@@ -163,6 +192,8 @@ export type LiveJournalApiAuthParams = {
     auth_response?: string;
 };
 
+export const LiveJournalUserPicFileFormats = ['png', 'jpg', 'jpeg', 'gif'] as const;
+export type LiveJournalUserPicFileFormat = typeof LiveJournalUserPicFileFormats[number];
 
 export class LiveJournalApi {
     protected readonly staticAuthParams: LiveJournalApiAuthParams;
@@ -180,6 +211,10 @@ export class LiveJournalApi {
 
     protected verbose: (message: any) => void = () => { };
     protected getAuthParams: () => LiveJournalApiAuthParams;
+
+    public static isAcceptedUserPicFileFormat(format: string): format is LiveJournalUserPicFileFormat {
+        return LiveJournalUserPicFileFormats.includes(format as any);
+    }
 
     /**
      * 
@@ -228,6 +263,7 @@ export class LiveJournalApi {
      * @returns Header object
      */
     protected async getCookieHeader(): Promise<{ [key: string]: string; }> {
+        //this.verbose(`Getting cookie header`);
         return {
             'cookie': `ljsession=${(await this.getLjSession())}`,
             'X-LJ-Auth': 'cookie',
@@ -266,6 +302,7 @@ export class LiveJournalApi {
 
     protected async refreshCookie(force: boolean = false): Promise<LiveJournalCookieData> {
         if (isValidCookie(this.cookie) && !force) {
+            //this.verbose(`Returning existing session`);
             return this.cookie;
         } else {
             this.verbose(`Creating new cookie session`);
@@ -281,6 +318,7 @@ export class LiveJournalApi {
     }
 
     public async getLjSession(): Promise<string> {
+        //this.verbose(`Getting lj session`);
         return (await this.refreshCookie()).ljsession;
     }
 
@@ -294,7 +332,7 @@ export class LiveJournalApi {
      * @returns Parsed API response as object
      */
     @throttled()
-    private async methodCall<TReturn extends XmlRpcValue = any>(method: LiveJournalApiMethod, params: XmlRpcStruct = {}): Promise<TReturn> {
+    private async methodCall<TReturn extends XmlRpcValue = any>(method: LiveJournalXmlRpcApiMethod, params: XmlRpcStruct = {}): Promise<TReturn> {
         if (this.ljXmlRpc === undefined) this.ljXmlRpc = await this.initXmlRpc();
         return this.ljXmlRpc.methodCall(`LJ.XMLRPC.${method}`, [Object.assign({ version: 1 }, this.getAuthParams(), params)]).catch(err => {
             if (err instanceof XmlRpcFault) {
@@ -327,24 +365,65 @@ export class LiveJournalApi {
 
     @throttled()
     public async ljWebGetRequest(url: string, params: { [key: string]: string | number | undefined; }): Promise<NodeJS.ReadableStream> {
-        this.verbose(`ljWebFormPostRequest to ${url}`);
-        const formItems = [];
-        for (let paramName in params) {
-            formItems.push(`${paramName}=${params[paramName]}`);
-        }
-        const formData = formItems.join('&');
-        this.verbose(formData);
-
+        this.verbose(`ljWebGetRequest to ${url}`);
         return fetch(url, {
-            method: 'POST',
-            body: formData,
+            method: 'GET',
             headers: {
-                'accept': '*/*',
-                'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'accept': 'image/avif,image/webp,*/*',
                 ...(await this.getCookieHeader())
             }
         }).then(res => res.body);
     }
+
+    @throttled()
+    public async downloadUserPic(url: string): Promise<{ file_type: LiveJournalUserPicFileFormat, file: NodeJS.ReadableStream; }> {
+        this.verbose(`ljWebGetRequest to ${url}`);
+        return fetch(url, {
+            method: 'GET',
+            headers: {
+                'accept': 'image/avif,image/webp,*/*',
+                ...(await this.getCookieHeader())
+            }
+        }).then(res => {
+            if (res.status == 404) throw new LiveJournalApiError(`Userpic not found: ${url}`, res.status);
+            const RegExp_Image_Content_Type = /image\/(\w+)/;
+            const contentType = res.headers.get('content-type');
+            if (contentType == null) throw new LiveJournalApiError(`Userpic ${url} does not have a content-type header`, res.status);
+            const regExpResult = RegExp_Image_Content_Type.exec(contentType);
+            if (regExpResult && LiveJournalApi.isAcceptedUserPicFileFormat(regExpResult[1])) {
+                console.log(`Returning file with type ${regExpResult[1]}`);
+                return {
+                    file_type: regExpResult[1],
+                    file: res.body
+                };
+            } else {
+                throw new LiveJournalApiError(`Userpic ${url} does not have an accepted content-type: "${contentType}"`, res.status);
+            }
+        }).catch(err => {
+            console.log(err);
+            throw err;
+        });
+    }
+
+    public async refreshAuthToken() {
+        const userProfile = `https://${this.staticAuthParams.username}.livejournal.com/profile`;
+        let res = await fetch(userProfile, { headers: await this.getCookieHeader() });
+        await pipeline(res.body, createWriteStream(`${this.staticAuthParams.username}_profile.html`));
+    }
+
+    /**
+     * Send JSONRPC request
+     * @param user 
+     * @returns 
+     */
+    @throttled()
+    public async jsonRpcRequest(method: LiveJournalJsonRpcApiMethod, params: object = {}): Promise<LiveJournalIconInfo[]> {
+        return fetch(LIVEJOURNAL_JSONRPC_URL, { headers: await this.getCookieHeader() })
+            .then(res => res.text())
+            .then(body => {
+                return getIconsFromHTML(body);
+            });
+    };
 
     /**
      * Get icons for a specific user.
@@ -355,13 +434,14 @@ export class LiveJournalApi {
      */
     @throttled()
     public async getIcons(user: string): Promise<LiveJournalIconInfo[]> {
+        this.verbose(`Reading icons from ${LIVEJOURNAL_URL}/allpics.bml?user=${user}`);
         return fetch(`${LIVEJOURNAL_URL}/allpics.bml?user=${user}`, {
             headers: await this.getCookieHeader()
         }).then(res => res.text())
             .then(body => {
                 return getIconsFromHTML(body);
             });
-    }
+    };
 
     // API Methods
 
@@ -426,7 +506,7 @@ export class LiveJournalApi {
     public getComments(params: LiveJournalGetCommentsOptions): Promise<LiveJournalGetCommentsResponse> {
         return this.methodCall<LiveJournalGetCommentsResponseRaw>("getcomments", convertLiveJournalGetCommentsOptions(params))
             .then(convertLiveJournalGetCommentsResponse);
-    }
+    };
 
     /**
      * This function returns the number of LJ entries per day
@@ -613,7 +693,7 @@ export class LiveJournalApi {
         return this.getRawPostsExportCsv(params).then(parsePostExportsCsv);
     }
 
-    public async *createPostsExportGenerator(startDate: Date = LIVEJOURNAL_START_DATE, endDate?: Date): AsyncGenerator<LiveJournalExportEvent> {
+    public async * createPostsExportGenerator(startDate: Date = LIVEJOURNAL_START_DATE, endDate?: Date): AsyncGenerator<LiveJournalExportEvent> {
         const yearMonthGenerator = createYearMonthGenerator(startDate, endDate ?? new Date());
         for (const yearMonth of yearMonthGenerator) {
             const monthlyGenerator = createExportEventGenerator(await this.getRawPostsExportCsv({
@@ -640,16 +720,17 @@ export function throttled() {
                 if (this instanceof LiveJournalApi) {
                     if (this.throttle) {
                         const timeDiff = this.lastWebRequest + this.throttleDelay - Date.now();
-                        //console.log(`timeDiff = ${timeDiff}ms`);
+                        //console.log(`[throttle] timeDiff = ${timeDiff}ms`);
                         if (timeDiff > 0) {
                             this.lastWebRequest = Date.now() + timeDiff;
                             return new Promise((resolve) => {
                                 setTimeout(() => {
+                                    //console.log(`[throttle] Running method ${propertyName}`);
                                     resolve(originalMethod.apply(this, args));
                                 }, timeDiff);
                             });
                         } else {
-                            //console.log(`Running method ${propertyName} immediately`);
+                            //console.log(`[throttle] Running method ${propertyName} immediately`);
                             this.lastWebRequest = Date.now();
                             return originalMethod.apply(this, args);
                         }

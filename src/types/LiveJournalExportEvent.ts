@@ -1,4 +1,4 @@
-import { convertLiveJournalDateString, LiveJournalDateString, LiveJournalEventSecurity } from ".";
+import { convertLiveJournalDateString, LiveJournalDateString, LiveJournalSecurity } from ".";
 import { Replace } from "../Replace";
 
 /**
@@ -19,7 +19,7 @@ export type LiveJournalExportEvent = {
     logtime: Date;
     subject: string;
     event: string;
-    security: LiveJournalEventSecurity;
+    security: LiveJournalSecurity;
     allowmask: number;
     current_music?: string;
     current_mood?: string;

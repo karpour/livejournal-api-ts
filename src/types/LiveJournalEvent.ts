@@ -1,7 +1,5 @@
-import { convertLiveJournalApiBool, LiveJournalApiBool, convertLiveJournalDateString, LiveJournalDateString } from ".";
+import { convertLiveJournalApiBool, LiveJournalApiBool, convertLiveJournalDateString, LiveJournalDateString, LiveJournalSecurity } from ".";
 import { Replace } from "../Replace";
-
-export type LiveJournalEventSecurity = "public" | "private" | "usemask";
 
 export type LiveJournalEvent = {
     /** Entry internal identifier */
@@ -29,7 +27,7 @@ export type LiveJournalEvent = {
     /** Number of replies to an entry */
     reply_count: number;
     /** Access type ("public" – public entry visible to all, "private" – private entry, visible to the journal owner only) */
-    security?: LiveJournalEventSecurity;
+    security?: LiveJournalSecurity;
     /** Bit mask defining user groups that will have access to a 
      * posted entry. A 32-bit unsigned integer that defines the post visibility to user 
      * friends and groups. 0 bit stands for all user friends, bits ranging from 1 to 30 

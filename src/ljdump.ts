@@ -1,6 +1,6 @@
 import { createReadStream, createWriteStream, existsSync, fstat, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
-import LiveJournalApi from "./LiveJournalApi";
+import LiveJournalApi, { LiveJournalUserPicFileFormats } from "./LiveJournalApi";
 import https from "https";
 import {
     LiveJournalEvent,
@@ -13,6 +13,8 @@ import {
 import convertLjPostToMarkdown from "./markdown/convertLjPostToMarkdown";
 import { createYearMonthGenerator } from "./createYearMonthGenerator";
 import { createExportEventGenerator } from "./parsePostExportsCsv";
+
+import { pipeline } from "stream/promises";
 
 
 export type LiveJournalFriendExtended = LiveJournalFriend & {
@@ -41,7 +43,7 @@ const ljApi = new LiveJournalApi({
     password: password,
     cookieFile: 'cookie.json',
     throttle: true,
-    verbose: true,
+    //verbose: true,
     maxRequestsPerSecond: 1
 });
 
@@ -68,7 +70,8 @@ async function main() {
             console.log(`  ${icon.url} (${icon.description})`);
             const iconPath = path.join(USERPICS_DIR, `${icon.user_id}_${icon.icon_id}`);
             console.log(`    => ${iconPath}`);
-            await getFile(iconPath, icon.url);
+            const userPicResult = await getUserPic(iconPath, icon.url);
+            console.log(`Downloaded Pic ${userPicResult}`);
         }
     }
     //const friendOfs = await getFriendOf();
@@ -102,6 +105,7 @@ async function main() {
 
     //
 }
+
 
 async function getExportEvents() {
     const yearMonthGenerator = createYearMonthGenerator(new Date("2006-10-01"), new Date());
@@ -160,25 +164,30 @@ async function getEvents(): Promise<LiveJournalEvent[]> {
     }
 }
 
-async function getFile(target: string, url: string, force: boolean = false): Promise<string> {
-    if (existsSync(target)) {
+
+function userPicExists(userPicPathWithoutExtension: string): boolean {
+    const paths = LiveJournalUserPicFileFormats.map(format => `${userPicPathWithoutExtension}.${format}`);
+    for (let path of paths) {
+        //console.log(`  Checking ${path}`);
+        if (existsSync(path)) {
+            console.log(`    File Exists: ${path}`);
+            return true;
+        }
+    }
+    return false;
+}
+
+async function getUserPic(target: string, url: string, force: boolean = false): Promise<string> {
+    if (userPicExists(target)) {
         console.log(`Skipping ${url}`);
         return target;
     }
-    return new Promise<string>((resolve, reject) => {
-        const file = createWriteStream(target);
-        const request = https.get(url, function (response) {
-            response.pipe(file);
-
-            // after download completed close filestream
-            file.on("finish", () => {
-                file.close();
-                resolve(target);
-            });
-
-            file.on("error", (err) => reject(err));
-        });
-    });
+    const response = await ljApi.downloadUserPic(url);
+    //console.log(response);
+    const targetFilePath = `${target}.${response.file_type}`;
+    const targetFile = createWriteStream(targetFilePath);
+    await pipeline(response.file, targetFile);
+    return targetFilePath;
 }
 
 

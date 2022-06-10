@@ -2,6 +2,7 @@ import { convertLiveJournalEventProps, LiveJournalEventProps, LiveJournalEventPr
 import { convertLiveJournalApiBool, LiveJournalApiBool } from "./LiveJournalApiBool";
 import { LiveJournalJournalType } from "./LiveJournalJournalType";
 import { Replace } from "../Replace";
+import { LiveJournalSecurity } from "./LiveJournalSecurity";
 
 export type LiveJournalFriendsEvent = {
     /** Userpic description */
@@ -42,7 +43,7 @@ export type LiveJournalFriendsEvent = {
     /** Entry properties */
     props: LiveJournalEventProps;
     /** Access type ("public" – public entry visible to all, "private" – private entry, visible to the journal owner only) */
-    security?: "public" | "private" | "usemask";
+    security?: LiveJournalSecurity;
     /** Event text */
     event_raw: string;
 };
