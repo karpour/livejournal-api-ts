@@ -1,3 +1,4 @@
+import { buffer } from "stream/consumers";
 import { convertLiveJournalApiBool, LiveJournalApiBool, convertLiveJournalDateString, LiveJournalDateString, LiveJournalSecurity } from ".";
 import { Replace } from "../Replace";
 
@@ -58,7 +59,7 @@ export function convertLiveJournalEventRaw(event: LiveJournalEventRaw): LiveJour
         eventtime: convertLiveJournalDateString(event.eventtime),
         props: convertLiveJournalEventProps(event.props),
         logtime: convertLiveJournalDateString(event.logtime),
-        event: event.event instanceof Buffer ? event.event.toString() : event.event
+        event: Buffer.isBuffer(event.event) ? event.event.toString('utf8') : event.event
     };
 }
 

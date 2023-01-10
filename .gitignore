@@ -3,7 +3,7 @@ dist/
 src/test.ts
 *.pdf
 output/
-credentials.json
+credentials*.json
 test.txt
 test.html
 ljprotocol.pl

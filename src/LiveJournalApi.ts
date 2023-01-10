@@ -240,17 +240,19 @@ export class LiveJournalApi {
             if (passwords.hpassword) this.staticAuthParams.hpassword = passwords.hpassword;
         }
 
-
         this.getAuthParams = () => this.staticAuthParams;
 
         this.cookie = { ...options.cookie };
         if (options.cookieFile) {
-            if (!existsSync(options.cookieFile)) throw new Error(`Cookie file "${options.cookieFile}" does not exist`);
-            const credentials = JSON.parse(readFileSync(options.cookieFile).toString()) as Partial<LiveJournalCookieData>;
-            this.cookie.ljsession = credentials.ljsession;
-            this.cookie.expires = (credentials.expires && credentials.ljsession) ? new Date(credentials.expires) : undefined;
-            this.verbose(`Loaded cookie file "${options.cookieFile}"`);
-            this.verbose(this.cookie);
+            if (existsSync(options.cookieFile)) {
+                const credentials = JSON.parse(readFileSync(options.cookieFile).toString()) as Partial<LiveJournalCookieData>;
+                this.cookie.ljsession = credentials.ljsession;
+                this.cookie.expires = (credentials.expires && credentials.ljsession) ? new Date(credentials.expires) : undefined;
+                this.verbose(`Loaded cookie file "${options.cookieFile}"`);
+                this.verbose(this.cookie);
+            } else {
+                console.error(`Cookie file "${options.cookieFile}" does not exist`);
+            }
         }
 
         this.cookieRefresh = options.cookieRefresh ?? "long";
@@ -285,6 +287,13 @@ export class LiveJournalApi {
      */
     public get throttleDelay(): number {
         return this._throttleDelay;
+    }
+
+    /** 
+     * @returns The username of the currently logged in user 
+     */
+    public get userName(): string {
+        return this.staticAuthParams.username;
     }
 
     /**
@@ -497,7 +506,7 @@ export class LiveJournalApi {
 
     /**
      * Get comments for an item (undocumented API endpoint)
-     * @param itemId Article ID
+     * @param params Params
      * @returns List of comments
      */
     public getComments(params: LiveJournalGetCommentsOptionsThread): Promise<LiveJournalGetCommentsResponseBasic>;
