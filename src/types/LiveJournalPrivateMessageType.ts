@@ -20,7 +20,10 @@ export const LiveJournalPrivateMessageTypes = [
     'UserMessageRecvd',
     'UserMessageSent',
     'UserNewComment',
-    'UserNewEntry'] as const;
+    'UserNewEntry',
+    'message',
+    'usermsg'
+] as const;
 
 
 export type LiveJournalPrivateMessageType = typeof LiveJournalPrivateMessageTypes[number];

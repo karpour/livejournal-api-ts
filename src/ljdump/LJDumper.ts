@@ -17,7 +17,7 @@ import { createExportEventGenerator } from "../parsePostExportsCsv";
 
 import { pipeline } from "stream/promises";
 
-function sleepMs(ms: number) {
+export function sleepMs(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -33,9 +33,11 @@ export default class LJDumper {
     private readonly EXPORT_EVENTS_DIR: string;
     private readonly EXPORT_EVENTS_CSV_DIR: string;
     private readonly USERPICS_DIR: string;
+    private readonly FOAF_DIR: string;
+    private readonly PROFILE_DIR: string;
 
 
-    public constructor(protected ljApi: LiveJournalApi, outDir: string) {
+    public constructor(protected ljApi: LiveJournalApi, protected outDir: string) {
         this.FRIENDS_FILE = path.join(outDir, 'friends.json');
         this.FRIENDOF_FILE = path.join(outDir, 'friendof.json');
         this.FRIENDGROUPS_FILE = path.join(outDir, 'friendgroups.json');
@@ -47,15 +49,19 @@ export default class LJDumper {
         this.EXPORT_EVENTS_DIR = path.join(outDir, 'export_events');
         this.EXPORT_EVENTS_CSV_DIR = path.join(outDir, 'export_events_csv');
         this.USERPICS_DIR = path.join(outDir, 'user_pics');
+        this.PROFILE_DIR = path.join(outDir, 'profiles');
+        this.FOAF_DIR = path.join(outDir, 'foaf');
 
         if (!existsSync(outDir)) {
             mkdirSync(outDir, { recursive: true });
         }
     }
 
-    public async getExportEvents() {
+    public async getExportEvents(): Promise<LiveJournalExportEvent[]> {
         const yearMonthGenerator = createYearMonthGenerator(new Date("2006-10-01"), new Date());
         mkdirSync(this.EXPORT_EVENTS_CSV_DIR, { recursive: true });
+        if (existsSync(path.join(this.EXPORT_EVENTS_CSV_DIR, ".done"))) return this.readExportEvents();
+
         console.log(`Getting post exports`);
         const events: LiveJournalExportEvent[] = [];
 
@@ -82,12 +88,30 @@ export default class LJDumper {
                 events.push(item);
             }
         }
+
+        writeFileSync(path.join(this.EXPORT_EVENTS_CSV_DIR, ".done"), "");
+
         return events;
     }
 
     public async readExportEvents(): Promise<LiveJournalExportEvent[]> {
         const dir = readdirSync(this.EXPORT_EVENTS_DIR);
-        const events = dir.map(e => JSON.parse(readFileSync(path.join(this.EXPORT_EVENTS_DIR, e)).toString()) as LiveJournalExportEvent);
+        console.log(`Reading Export Events from ${this.EXPORT_EVENTS_DIR}`)
+        const events = dir
+            .filter(f => f.endsWith(".json"))
+            .map(e => JSON.parse(readFileSync(path.join(this.EXPORT_EVENTS_DIR, e)).toString()) as LiveJournalExportEvent);
+        //console.log(events);
+        return events;
+    }
+
+    public async readEvents(): Promise<LiveJournalEvent[]> {
+        const dir = readdirSync(this.EVENTS_DIR);
+        console.log(`Reading Events from ${this.EVENTS_DIR}`)
+        const events = dir
+            .filter(f => f.endsWith(".json"))
+            .map(e => {
+                return JSON.parse(readFileSync(path.join(this.EVENTS_DIR, e)).toString()) as LiveJournalEvent;
+            });
         //console.log(events);
         return events;
     }
@@ -95,7 +119,10 @@ export default class LJDumper {
 
     public async readExportComments(): Promise<LiveJournalComment[]> {
         const dir = readdirSync(this.EXPORT_COMMENTS_DIR);
-        const comments = dir.map(e => JSON.parse(readFileSync(path.join(this.EXPORT_COMMENTS_DIR, e)).toString()) as LiveJournalComment[]).flat();
+        console.log(`Reading Export Comments from ${this.EXPORT_COMMENTS_DIR}`)
+        const comments = dir
+            .filter(f => f.endsWith(".json"))
+            .map(e => JSON.parse(readFileSync(path.join(this.EXPORT_COMMENTS_DIR, e)).toString()) as LiveJournalComment[]).flat();
         return comments;
     }
 
@@ -112,13 +139,20 @@ export default class LJDumper {
 
     public async getEvents(journal?: string): Promise<LiveJournalEvent[]> {
         mkdirSync(this.EVENTS_DIR, { recursive: true });
+        if (existsSync(path.join(this.EVENTS_DIR, ".done"))) return this.readEvents();
 
         const e: LiveJournalEvent[] = [];
         if (journal) console.log(`Importing events for ${journal}`);
         let skip = 0;
         const howmany = 32;
 
+
+
+        let lowestItem = 1000000;
+        let prevLowestItem;
+
         while (true) {
+
             const events = (await this.ljApi.getEvents({
                 selecttype: "lastn",
                 usejournal: journal ?? this.ljApi.userName,
@@ -127,16 +161,79 @@ export default class LJDumper {
                 howmany,
                 skip
             })).events;
-            if (events.length == 0) break;
+
+
+
+            console.log(`Getting events ${skip}-${skip + events.length}`);
+            if (events.length == 0) {
+                break;
+            }
             skip += howmany;
+            prevLowestItem = lowestItem;
             for (let event of events) {
+                lowestItem = Math.min(lowestItem, event.itemid);
                 e.push(event);
                 console.log(`Writing event ${event.itemid}`);
-                writeFileSync(path.join(this.EVENTS_DIR, `${event.itemid}.json`), JSON.stringify(event, null, 4));
+                const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
+                if (!existsSync(eventFileName)) {
+                    writeFileSync(eventFileName, JSON.stringify(event, null, 4));
+                }
+            }
+            if (lowestItem == prevLowestItem) {
+                console.log(`Previous lowest item = current lowest item, fetching stalled: ${lowestItem}`);
+                break;
             }
         }
+
+        for (let i = lowestItem; i > 0; i -= 10) {
+            let range: number[] = [];
+            const min = Math.max(0, i - 10);
+            for (let j = i; j > min; j--) {
+                range.push(j);
+            }
+            const rangeString = range.join(",");
+            console.log(`Fetching itemids ${i}-${min}`);
+            const events = (await this.ljApi.getEvents({
+                selecttype: "multiple",
+                usejournal: journal ?? this.ljApi.userName,
+                lineendings: "unix",
+                parseljtags: false,
+                itemids: rangeString
+            })).events;
+            for (let event of events) {
+                lowestItem = Math.min(lowestItem, event.itemid);
+                e.push(event);
+                //console.log(`Writing event ${event.itemid}`);
+                const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
+                if (!existsSync(eventFileName)) {
+                    writeFileSync(eventFileName, JSON.stringify(event, null, 4));
+                }
+            }
+        }
+
+        writeFileSync(path.join(this.EVENTS_DIR, ".done"), "");
         return e;
 
+    }
+
+    public async getAllComments(events: { itemid: number; }[]): Promise<LiveJournalComment[]> {
+        mkdirSync(this.EXPORT_COMMENTS_DIR, { recursive: true });
+        if (existsSync(path.join(this.EXPORT_COMMENTS_DIR, ".done"))) return this.readExportComments();
+        const numEvents = events.length;
+        let cnt = 0;
+        const comments: LiveJournalComment[] = [];
+        for (const event of events) {
+            try {
+                console.log(`Getting comments for ${event.itemid} (${++cnt}/${numEvents})`);
+                const c = await this.getComments(event.itemid);
+                comments.push(...c);
+            } catch (e) {
+                console.log(e);
+                console.error("Failed");
+            }
+        }
+        writeFileSync(path.join(this.EXPORT_COMMENTS_DIR, ".done"), "");
+        return comments;
     }
 
     public async getComments(itemid: number): Promise<LiveJournalComment[]> {
@@ -198,27 +295,35 @@ export default class LJDumper {
         return targetFilePath;
     }
 
-    public async getInbox(type: LiveJournalPrivateMessageType): Promise<LiveJournalPrivateMessageExtended[]> {
-        const inboxFilename = `inbox_${type}.json`;
+    public async getInbox(): Promise<LiveJournalPrivateMessageExtended[]> {
+        const inboxFilename = path.join(this.outDir, `inbox.json`);
 
         if (existsSync(inboxFilename)) {
             console.log(`Reading inbox from ${inboxFilename}`);
             return JSON.parse(readFileSync(this.FRIENDS_FILE).toString()) as LiveJournalPrivateMessageExtended[];
         } else {
-            console.log(`Importing inbox ${type}`);
+            console.log(`Importing inbox`);
             const messages: LiveJournalPrivateMessageExtended[] = [];
-            for (let page = 0; ; page++) {
-                const response = (await this.ljApi.getInbox({
-                    itemshow: 100,
-                    skip: page * 100,
-                    gettype: [type],
-                    extended: true
-                }));
-                console.log(`Fetched items ${page * 100}-${page * 100 + response.items.length}`);
+            const response = (await this.ljApi.getInbox({
+                itemshow: 99,
+                extended: true
+            }));
+            console.log(`Fetched items 0-99`);
 
-                messages.push(...response.items);
-                if (response.items.length < 100) break;
-            }
+            messages.push(...response.items);
+
+            // Skip has a max value of 99
+            const response2 = (await this.ljApi.getInbox({
+                itemshow: 100,
+                skip: 99,
+                extended: true
+            }));
+            console.log(`Fetched items 100-199`);
+
+            messages.push(...response2.items);
+
+            writeFileSync(inboxFilename, JSON.stringify(messages, null, 4));
+
             return messages;
         }
     }
@@ -275,6 +380,11 @@ export default class LJDumper {
         const friends = await this.getFriends();
         const friendOf = await this.getFriendOf();
         mkdirSync(this.USERPICS_DIR, { recursive: true });
+        if (existsSync(path.join(this.USERPICS_DIR, ".done"))) {
+            console.log("Already done archiveFriendsPics, skipping");
+            return;
+        }
+
 
         for (let friend of friends) {
             console.log(friend.username);
@@ -299,6 +409,120 @@ export default class LJDumper {
                 //console.log(`Downloaded Pic ${userPicResult}`);
             }
         }
+        writeFileSync(path.join(this.USERPICS_DIR, ".done"), "");
+
+    }
+
+    public async archivePicsByUsername(usernames: string[]) {
+        mkdirSync(this.USERPICS_DIR, { recursive: true });
+        if (existsSync(path.join(this.USERPICS_DIR, ".done"))) {
+            console.log("Already done archivePicsByUsername, skipping");
+            return;
+        }
+        for (let username of usernames) {
+            console.log(username);
+            let userPics = (await this.ljApi.getIcons(username));
+            for (let icon of userPics) {
+                console.log(`  ${icon.url} (${icon.description})`);
+                const iconPath = path.join(this.USERPICS_DIR, `${icon.user_id}_${icon.icon_id}`);
+                //console.log(`    => ${iconPath}`);
+                while (true) {
+                    try {
+                        const userPicResult = await this.getUserPic(iconPath, icon.url);
+                    } catch {
+                        console.log("Retrying after 5s");
+                        await sleepMs(5000);
+                        continue;
+                    }
+                    break;
+                }
+
+                //console.log(`Downloaded Pic ${userPicResult}`);
+            }
+        }
+        writeFileSync(path.join(this.USERPICS_DIR, ".done2"), "");
+
+    }
+
+    public async getFoaf(usernames: string[]) {
+        mkdirSync(this.FOAF_DIR, { recursive: true });
+        if (existsSync(path.join(this.FOAF_DIR, ".done"))) {
+            console.log("Already done getFoaf, skipping");
+            return;
+        }
+
+        for (const username of usernames) {
+            const url = `https://${username}.livejournal.com/data/foaf`;
+            const outputPath = path.join(this.FOAF_DIR, `${username}.xml`);
+            if (existsSync(outputPath)) {
+                console.log(`Skipping ${username}: exists`);
+                continue;
+            }
+
+            try {
+                await sleepMs(500);
+                const res = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) Gecko/20100101 Firefox/146.0',
+                    },
+                });
+
+                if (!res.ok) {
+                    console.warn(`Skipping ${username}: HTTP ${res.status}`);
+                    continue;
+                }
+
+
+                const xml = await res.text();
+                writeFileSync(outputPath, xml, 'utf8');
+
+                console.log(`Saved FOAF: ${outputPath}`);
+            } catch (err: any) {
+                console.error(`Error fetching ${username}:`, err.message);
+            }
+        }
+        writeFileSync(path.join(this.FOAF_DIR, ".done"), "");
+
+    }
+
+    public async getProfiles(usernames: string[]) {
+        mkdirSync(this.PROFILE_DIR, { recursive: true });
+        if (existsSync(path.join(this.PROFILE_DIR, ".done"))) {
+            console.log("Already done getProfiles, skipping");
+            return;
+        }
+
+        for (const username of usernames) {
+            const url = `https://${username}.livejournal.com/profile`;
+            const outputPath = path.join(this.PROFILE_DIR, `${username}.html`);
+            if (existsSync(outputPath)) {
+                console.log(`Skipping ${username}: exists`);
+                continue;
+            }
+
+            try {
+                await sleepMs(500);
+                const res = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) Gecko/20100101 Firefox/146.0',
+                    },
+                });
+
+                if (!res.ok) {
+                    console.warn(`Skipping ${username}: HTTP ${res.status}`);
+                    continue;
+                }
+
+
+                const html = await res.text();
+                writeFileSync(outputPath, html, 'utf8');
+
+                console.log(`Saved Profile: ${outputPath}`);
+            } catch (err: any) {
+                console.error(`Error fetching ${username}:`, err.message);
+            }
+        }
+        writeFileSync(path.join(this.FOAF_DIR, ".done"), "");
     }
 
     public async getUserProfile(): Promise<LiveJournalUserProfile> {
