@@ -225,7 +225,7 @@ export class LiveJournalApi {
         this.verbose(`Created LiveJournalApi instance`);
 
         this.throttle = options.throttle ?? false;
-        this.maxRequestsPerSecond = options.maxRequestsPerSecond ?? 5;
+        this.maxRequestsPerSecond = options.maxRequestsPerSecond ?? 4;
         this._throttleDelay = Math.round(1000 / this.maxRequestsPerSecond);
 
         this.authMethod = options.authMethod;
@@ -400,7 +400,7 @@ export class LiveJournalApi {
             if (contentType == null) throw new LiveJournalApiError(`Userpic ${url} does not have a content-type header`, res.status);
             const regExpResult = RegExp_Image_Content_Type.exec(contentType);
             if (regExpResult && LiveJournalApi.isAcceptedUserPicFileFormat(regExpResult[1])) {
-                console.log(`Returning file with type ${regExpResult[1]}`);
+                //console.log(`Returning file with type ${regExpResult[1]}`);
                 return {
                     file_type: regExpResult[1],
                     file: res.body

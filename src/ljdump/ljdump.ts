@@ -1,16 +1,14 @@
-import { mkdirSync, readFileSync } from "fs";
+import { mkdirSync, readdirSync, readFileSync } from "fs";
 import path from "path";
 import LiveJournalApi from "..";
 import { LiveJournalFriend, LiveJournalIconInfo } from "../types";
 import LJDumper from "./LJDumper";
 
 
-export type LiveJournalFriendExtended = LiveJournalFriend & {
-    user_pics: LiveJournalIconInfo[];
-};
+
 // This is very much a WIP
 
-const credentials = JSON.parse(readFileSync("credentials_henrieke.json").toString());
+const credentials = JSON.parse(readFileSync("credentials.json").toString());
 const username = credentials.username;
 const password = credentials.password;
 
@@ -29,28 +27,52 @@ const ljApi = new LiveJournalApi({
 
 async function main() {
     const ljDumper: LJDumper = new LJDumper(ljApi, OUT_DIR);
-
-    const friendOfs = await ljDumper.getFriendOf();
-    const friendGroups = await ljDumper.getFriendGroups();
-    const userProfile = await ljDumper.getUserProfile();
-
-    //await ljDumper.getExportEvents();
-
-
-    const events = await ljDumper.getEvents();
-
-    await ljDumper.archiveFriendsPics();
+    /*
+        console.log("Getting friends");
+        await ljDumper.getFriends();
+        console.log("Getting friend of");
+        const friendOfs = await ljDumper.getFriendOf();
+        console.log("Getting friend groups");
+        const friendGroups = await ljDumper.getFriendGroups();
+        console.log("Getting user profile");
+        const userProfile = await ljDumper.getUserProfile();
+    
+        console.log("Getting recent events");
+        //const recentEvents = await ljDumper.getEvents();
+    
+        console.log("Getting export events");
+        //await ljDumper.getExportEvents();
+    
+        console.log("Getting comments");
+        const events = await ljDumper.readExportEvents();
+    
+        const numEvents = events.length;
+        let cnt = 0;
+        for (const event of events) {
+            try {
+                console.log(`Getting comments for ${event.itemid} (${++cnt}/${numEvents})`);
+                await ljDumper.getComments(event.itemid);
+            } catch (e) {
+                console.log(e);
+                console.error("Failed");
+            }
+        }
+    */
+    while (true) {
+        try {
+            console.log("Archiving user icons");
+            await ljDumper.archiveFriendsPics();
+        } catch {
+            console.log("Retrying");
+            continue;
+        }
+        break;
+    }
 
     //const ev = events[0];
     //console.log(ev.event);
     //console.log('===============================');
     //console.log(convertLjPostToMarkdown(ev.event));
-
-    // TODO
-    // combine posts with ids
-    // get comments for each entry
 }
-
-
 
 main();

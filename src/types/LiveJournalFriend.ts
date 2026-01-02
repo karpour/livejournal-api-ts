@@ -1,5 +1,6 @@
 import { Replace } from "../Replace";
 import { convertLiveJournalDateString, LiveJournalDateString } from "./LiveJournalDateString";
+import { LiveJournalIconInfo } from "./LiveJournalIconInfo";
 
 /** @internal */
 export type LiveJournalFriendRaw = Replace<LiveJournalFriend, {
@@ -28,6 +29,8 @@ export type LiveJournalFriend = {
     birthday?: Date,
     /** User group mask (32-bit integer) */
     groupmask?: number,
+    /** user pics */
+    user_pics?: LiveJournalIconInfo[];
 } & ({
     /** User type */
     type?: string;

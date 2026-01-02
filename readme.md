@@ -1,3 +1,37 @@
+# Getting right to the point
+
+You want your livejournal data out, and fast.
+
+You need to have [node.js](https://nodejs.org/en) and [NPM](https://www.npmjs.com/) installed.
+
+Check out this project (or download a zip file if you don't want to install git)
+
+inside the project dir:
+
+```sh
+npm i
+```
+
+add a file called `credentials.json` in the project root
+
+add username and password
+
+```json
+{
+    "username": "YOUR_LJ_USERNAME",
+    "password": "PASSWORD"
+}
+```
+
+Run scraper
+
+```sh
+npm run ljdump
+```
+
+it will put all data inside the `output/` directory
+
+
 # LiveJournal XML-RPC API client
 
 This is a pure Typescript LiveJournal XMLRPC API client, primarily meant for backing up LiveJournal user data into JSON for archiving and self-hosting.

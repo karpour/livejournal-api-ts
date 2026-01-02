@@ -11,7 +11,7 @@ export type LiveJournalGetCommentsOptionsRaw =
 
 // TODO check if it's usejournal or journal for the journal name param
 export type LiveJournalGetCommentsOptionsJournalId = {
-    usejournal: string;
+    journal: string;
 } | {
     journalid: number;
 };
@@ -23,8 +23,9 @@ export type LiveJournalGetCommentsOptionsItemId = {
 };
 
 export type LiveJournalGetCommentsOptionsBasicRaw = {
-    dtalkid: number;
+    dtalkid?: number;
     page_size?: number;
+    page?: number;
     expand_strategy?: 'mobile' | 'mobile_thread' | 'expand_all' | 'by_level' | 'detailed' | 'default';
     //format?: 'thread' | 'list';
     expand_child?: number;

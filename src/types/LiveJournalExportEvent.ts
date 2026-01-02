@@ -15,6 +15,7 @@ type LiveJournalExportEventRaw = Replace<LiveJournalExportEvent, {
 
 export type LiveJournalExportEvent = {
     itemid: number;
+    ditemid: number;
     eventtime: Date;
     logtime: Date;
     subject: string;
@@ -35,7 +36,8 @@ export function convertLiveJournalExportEvent(post: LiveJournalExportEventRaw): 
         logtime: convertLiveJournalDateString(post.logtime),
         eventtime: convertLiveJournalDateString(post.eventtime),
         security: post.security,
-        itemid: parseInt(post.itemid),
+        itemid: parseInt(post.itemid) >> 8,
+        ditemid: parseInt(post.itemid),
         subject: post.subject
     };
     if (post.current_mood) ev.current_mood = post.current_mood;
