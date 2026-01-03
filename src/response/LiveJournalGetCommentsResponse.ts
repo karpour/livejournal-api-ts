@@ -1,3 +1,4 @@
+import { replaceBuffers } from "../LiveJournalApi";
 import { convertLiveJournalComment, LiveJournalComment, LiveJournalCommentRaw } from "../types";
 
 export type LiveJournalGetCommentsResponseBasicRaw = {
@@ -29,7 +30,7 @@ export type LiveJournalGetCommentsResponseExtended = LiveJournalGetCommentsRespo
 export type LiveJournalGetCommentsResponse = LiveJournalGetCommentsResponseBasic | LiveJournalGetCommentsResponseExtended;
 
 export function convertLiveJournalGetCommentsResponse(resp: LiveJournalGetCommentsResponseRaw): LiveJournalGetCommentsResponse {
-    return Object.assign(resp, {
+    return replaceBuffers(Object.assign(resp, {
         comments: resp.comments.map(convertLiveJournalComment)
-    });
+    }));
 }

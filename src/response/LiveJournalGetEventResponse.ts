@@ -1,3 +1,4 @@
+import { replaceBuffers } from "../LiveJournalApi";
 import {
     convertLiveJournalEventRaw,
     LiveJournalEvent,
@@ -22,9 +23,9 @@ export type LiveJournalGetEventResponseExtra = {
 export type LiveJournalGetEventResponse = Omit<LiveJournalGetEventResponseRaw, keyof LiveJournalGetEventResponseExtra> & LiveJournalGetEventResponseExtra;
 
 export function convertLiveJournalGetEventResponse(resp: LiveJournalGetEventResponseRaw): LiveJournalGetEventResponse {
-    return {
+    return replaceBuffers({
         skip: resp.skip,
         events: resp.events.map((e: any) => convertLiveJournalEventRaw(e)),
         lastsync: convertLiveJournalDateString(resp.lastsync)
-    };
+    });
 }

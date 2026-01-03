@@ -192,6 +192,43 @@ export type LiveJournalApiAuthParams = {
     auth_response?: string;
 };
 
+export function convertBuffer<K extends string>(key: K, item: { [key in K]: any; }) {
+    if (item[key].type == "Buffer" && item[key].data) {
+        console.log("Converted buffer");
+        const v = Buffer.from(item[key].data);
+        item[key] = v.toString();
+    }
+}
+
+export function replaceBuffers(value: any): any {
+
+    if (value instanceof Buffer) {
+        console.error("Converted buffer");
+        return value.toString("utf8");
+    }
+
+    if (
+        value &&
+        typeof value === "object" &&
+        value.type === "Buffer" &&
+        Array.isArray(value.data)
+    ) {
+        return Buffer.from(value.data).toString("utf8");
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(replaceBuffers);
+    }
+
+    if (value && typeof value === "object") {
+        return Object.fromEntries(
+            Object.entries(value).map(([k, v]) => [k, replaceBuffers(v)])
+        );
+    }
+
+    return value;
+}
+
 export const LiveJournalUserPicFileFormats = ['png', 'jpg', 'jpeg', 'gif'] as const;
 export type LiveJournalUserPicFileFormat = typeof LiveJournalUserPicFileFormats[number];
 

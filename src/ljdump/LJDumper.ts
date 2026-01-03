@@ -1,6 +1,6 @@
-import { createReadStream, createWriteStream, existsSync, fstat, mkdirSync, readdirSync, readFileSync, writeFileSync } from "fs";
+import { createReadStream, createWriteStream, existsSync, fstat, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
-import LiveJournalApi, { LiveJournalGetCommentsResponseExtended, LiveJournalUserPicFileFormats, throttled } from "..";
+import LiveJournalApi, { LiveJournalGetCommentsResponseExtended, LiveJournalUserPicFileFormats, replaceBuffers, throttled } from "..";
 import {
     LiveJournalComment,
     LiveJournalEvent,
@@ -8,6 +8,7 @@ import {
     LiveJournalFriend,
     LiveJournalFriendGroup,
     LiveJournalIconInfo,
+    LiveJournalPoll,
     LiveJournalPrivateMessageExtended,
     LiveJournalPrivateMessageType,
     LiveJournalUserProfile
@@ -26,7 +27,7 @@ export default class LJDumper {
     private readonly FRIENDOF_FILE: string;
     private readonly FRIENDGROUPS_FILE: string;
     private readonly USERPROFILE_FILE: string;
-    private readonly EVENT_FILE: string;
+    private readonly POLLS_FILE: string;
     private readonly COMMENT_FILE: string;
     private readonly EXPORT_COMMENTS_DIR: string;
     private readonly EVENTS_DIR: string;
@@ -42,7 +43,7 @@ export default class LJDumper {
         this.FRIENDOF_FILE = path.join(outDir, 'friendof.json');
         this.FRIENDGROUPS_FILE = path.join(outDir, 'friendgroups.json');
         this.USERPROFILE_FILE = path.join(outDir, 'userprofile.json');
-        this.EVENT_FILE = path.join(outDir, 'events.json');
+        this.POLLS_FILE = path.join(outDir, 'polls.json');
         this.COMMENT_FILE = path.join(outDir, 'events.json');
         this.EXPORT_COMMENTS_DIR = path.join(outDir, 'export_comments');
         this.EVENTS_DIR = path.join(outDir, 'events');
@@ -96,7 +97,7 @@ export default class LJDumper {
 
     public async readExportEvents(): Promise<LiveJournalExportEvent[]> {
         const dir = readdirSync(this.EXPORT_EVENTS_DIR);
-        console.log(`Reading Export Events from ${this.EXPORT_EVENTS_DIR}`)
+        console.log(`Reading Export Events from ${this.EXPORT_EVENTS_DIR}`);
         const events = dir
             .filter(f => f.endsWith(".json"))
             .map(e => JSON.parse(readFileSync(path.join(this.EXPORT_EVENTS_DIR, e)).toString()) as LiveJournalExportEvent);
@@ -106,7 +107,7 @@ export default class LJDumper {
 
     public async readEvents(): Promise<LiveJournalEvent[]> {
         const dir = readdirSync(this.EVENTS_DIR);
-        console.log(`Reading Events from ${this.EVENTS_DIR}`)
+        console.log(`Reading Events from ${this.EVENTS_DIR}`);
         const events = dir
             .filter(f => f.endsWith(".json"))
             .map(e => {
@@ -117,12 +118,14 @@ export default class LJDumper {
     }
 
 
-    public async readExportComments(): Promise<LiveJournalComment[]> {
+    public async readExportComments(): Promise<Record<number, LiveJournalComment[]>> {
         const dir = readdirSync(this.EXPORT_COMMENTS_DIR);
-        console.log(`Reading Export Comments from ${this.EXPORT_COMMENTS_DIR}`)
-        const comments = dir
-            .filter(f => f.endsWith(".json"))
-            .map(e => JSON.parse(readFileSync(path.join(this.EXPORT_COMMENTS_DIR, e)).toString()) as LiveJournalComment[]).flat();
+        console.log(`Reading Export Comments from ${this.EXPORT_COMMENTS_DIR}`);
+        const comments: Record<number, LiveJournalComment[]> = {};
+        const commentFiles = dir.filter(f => f.endsWith(".json"));
+        for (let commentFile of commentFiles) {
+            comments[parseInt(commentFile)] = JSON.parse(readFileSync(path.join(this.EXPORT_COMMENTS_DIR, commentFile)).toString()) as LiveJournalComment[];
+        }
         return comments;
     }
 
@@ -140,54 +143,62 @@ export default class LJDumper {
     public async getEvents(journal?: string): Promise<LiveJournalEvent[]> {
         mkdirSync(this.EVENTS_DIR, { recursive: true });
         if (existsSync(path.join(this.EVENTS_DIR, ".done"))) return this.readEvents();
+        let lowestItem = 1000000;
+        let skipInitialStep = false;
+        if (existsSync(path.join(this.EVENTS_DIR, ".low"))) {
+            lowestItem = parseInt(readFileSync(path.join(this.EVENTS_DIR, ".low")).toString());
+            console.log(`Continuing from itemid ${lowestItem}`);
+            skipInitialStep = true;
+        }
 
         const e: LiveJournalEvent[] = [];
         if (journal) console.log(`Importing events for ${journal}`);
         let skip = 0;
         const howmany = 32;
 
-
-
-        let lowestItem = 1000000;
         let prevLowestItem;
 
-        while (true) {
+        if (!skipInitialStep) {
+            while (true) {
 
-            const events = (await this.ljApi.getEvents({
-                selecttype: "lastn",
-                usejournal: journal ?? this.ljApi.userName,
-                lineendings: "unix",
-                parseljtags: false,
-                howmany,
-                skip
-            })).events;
+                const events = (await this.ljApi.getEvents({
+                    selecttype: "lastn",
+                    usejournal: journal ?? this.ljApi.userName,
+                    lineendings: "unix",
+                    parseljtags: false,
+                    howmany,
+                    skip
+                })).events;
 
 
 
-            console.log(`Getting events ${skip}-${skip + events.length}`);
-            if (events.length == 0) {
-                break;
-            }
-            skip += howmany;
-            prevLowestItem = lowestItem;
-            for (let event of events) {
-                lowestItem = Math.min(lowestItem, event.itemid);
-                e.push(event);
-                console.log(`Writing event ${event.itemid}`);
-                const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
-                if (!existsSync(eventFileName)) {
-                    writeFileSync(eventFileName, JSON.stringify(event, null, 4));
+                console.log(`Getting events ${skip}-${skip + events.length}`);
+                if (events.length == 0) {
+                    break;
                 }
-            }
-            if (lowestItem == prevLowestItem) {
-                console.log(`Previous lowest item = current lowest item, fetching stalled: ${lowestItem}`);
-                break;
+                skip += howmany;
+                prevLowestItem = lowestItem;
+
+                for (let event of events) {
+                    lowestItem = Math.min(lowestItem, event.itemid);
+                    e.push(event);
+                    console.log(`Writing event ${event.itemid}`);
+                    const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
+                    if (!existsSync(eventFileName)) {
+                        writeFileSync(eventFileName, JSON.stringify(event, null, 4));
+                    }
+                }
+                if (lowestItem == prevLowestItem) {
+                    console.log(`Previous lowest item = current lowest item, fetching stalled: ${lowestItem}`);
+                    break;
+                }
             }
         }
 
-        for (let i = lowestItem; i > 0; i -= 10) {
+        const step = 32;
+        for (let i = lowestItem; i > 0; i -= step) {
             let range: number[] = [];
-            const min = Math.max(0, i - 10);
+            const min = Math.max(0, i - step);
             for (let j = i; j > min; j--) {
                 range.push(j);
             }
@@ -200,33 +211,37 @@ export default class LJDumper {
                 parseljtags: false,
                 itemids: rangeString
             })).events;
+
+            writeFileSync(path.join(this.EVENTS_DIR, ".low"), `${min}`);
+
             for (let event of events) {
                 lowestItem = Math.min(lowestItem, event.itemid);
                 e.push(event);
                 //console.log(`Writing event ${event.itemid}`);
                 const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
-                if (!existsSync(eventFileName)) {
+                //if (!existsSync(eventFileName)) {
                     writeFileSync(eventFileName, JSON.stringify(event, null, 4));
-                }
+                //}
             }
         }
 
         writeFileSync(path.join(this.EVENTS_DIR, ".done"), "");
+        if (existsSync(path.join(this.EVENTS_DIR, ".low"))) unlinkSync(path.join(this.EVENTS_DIR, ".low"));
         return e;
 
     }
 
-    public async getAllComments(events: { itemid: number; }[]): Promise<LiveJournalComment[]> {
+    public async getAllComments(events: { itemid: number; }[]): Promise<Record<number, LiveJournalComment[]>> {
         mkdirSync(this.EXPORT_COMMENTS_DIR, { recursive: true });
         if (existsSync(path.join(this.EXPORT_COMMENTS_DIR, ".done"))) return this.readExportComments();
         const numEvents = events.length;
         let cnt = 0;
-        const comments: LiveJournalComment[] = [];
+        const comments: Record<number, LiveJournalComment[]> = {};
         for (const event of events) {
             try {
                 console.log(`Getting comments for ${event.itemid} (${++cnt}/${numEvents})`);
                 const c = await this.getComments(event.itemid);
-                comments.push(...c);
+                comments[event.itemid] = c;
             } catch (e) {
                 console.log(e);
                 console.error("Failed");
@@ -236,13 +251,13 @@ export default class LJDumper {
         return comments;
     }
 
-    public async getComments(itemid: number): Promise<LiveJournalComment[]> {
+    public async getComments(itemid: number, journal?: string): Promise<LiveJournalComment[]> {
         mkdirSync(this.EXPORT_COMMENTS_DIR, { recursive: true });
 
         const fileName = path.join(this.EXPORT_COMMENTS_DIR, `${itemid}.json`);
 
         if (existsSync(fileName)) {
-            console.log(`Reading events from ${fileName}`);
+            console.log(`Reading comments from ${fileName}`);
             return JSON.parse(readFileSync(fileName).toString()) as LiveJournalComment[];
         } else {
             const comments: any = [];
@@ -252,7 +267,7 @@ export default class LJDumper {
 
                 response = (await this.ljApi.getComments({
                     itemid: itemid,
-                    journal: this.ljApi.userName,
+                    journal: journal ?? this.ljApi.userName,
                     page_size: 100,
                     page,
                     format: "list"
@@ -268,6 +283,12 @@ export default class LJDumper {
         }
     }
 
+    public async writeComment(itemid: number, comments: LiveJournalComment[]) {
+        mkdirSync(this.EXPORT_COMMENTS_DIR, { recursive: true });
+        console.log(`Writing comment file ${itemid}`)
+        const fileName = path.join(this.EXPORT_COMMENTS_DIR, `${itemid}.json`);
+        writeFileSync(fileName, JSON.stringify(replaceBuffers(comments), null, 4));
+    }
 
     public userPicExists(userPicPathWithoutExtension: string): boolean {
         const paths = LiveJournalUserPicFileFormats.map(format => `${userPicPathWithoutExtension}.${format}`);
@@ -539,6 +560,20 @@ export default class LJDumper {
             });
             writeFileSync(this.USERPROFILE_FILE, JSON.stringify(userprofile, null, 4));
             return userprofile;
+        }
+    }
+
+    public async getPolls(pollids: number[]) {
+        if (existsSync(this.POLLS_FILE)) {
+        } else {
+            const polls: LiveJournalPoll[] = [];
+            for (let pollid of pollids) {
+                console.log(`  Poll ${pollid}`);
+
+                //polls.push(await this.ljApi.getPoll({ pollid, mode: "all" }));
+                polls.push(replaceBuffers(await this.ljApi.getPoll({ pollid, mode: "all" })));
+            }
+            writeFileSync(this.POLLS_FILE, JSON.stringify(polls, null, 4));
         }
     }
 }

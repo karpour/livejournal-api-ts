@@ -1,15 +1,9 @@
-import { mkdirSync, readdirSync, readFileSync } from "fs";
-import path from "path";
+import { readFileSync } from "fs";
 import LiveJournalApi from "..";
-import { LiveJournalFriend, LiveJournalIconInfo } from "../types";
-import LJDumper, { sleepMs } from "./LJDumper";
+import LJDumper from "./LJDumper";
+import { parse } from "path";
 
-
-
-// This is very much a WIP
-
-const credentials = JSON.parse(readFileSync("credentials_henrieke.json").toString());
-//const credentials = JSON.parse(readFileSync("credentials.json").toString());
+const credentials = JSON.parse(readFileSync("credentials.json").toString());
 const username = credentials.username;
 const password = credentials.password;
 
@@ -42,22 +36,21 @@ async function main() {
     const userProfile = await ljDumper.getUserProfile();
 
     header("Getting recent events");
-    const recentEvents = await ljDumper.getEvents();
+    const events = await ljDumper.getEvents();
 
     header("Getting export events");
-    await ljDumper.getExportEvents();
+    const exportEvents = await ljDumper.readExportEvents();
 
     header("Getting comments");
-    const events = await ljDumper.readExportEvents();
-
-    await ljDumper.getAllComments(events);
+    const comments = await ljDumper.getAllComments(exportEvents);
+    const commentsFlat = Object.values(comments).flat()
 
     // Get user data of commenters
     const friendUsernames = friends.map(u => u.username);
     const friendOfUsernames = friendOfs.map(u => u.username);
     const existingPeopleUsernames = [...friendUsernames, ...friendOfUsernames];
     // Array of people who commented but are neither friends nor friendofs
-    const commenterUsernames = [...new Set((await ljDumper.readExportComments()).map(c => c.postername))]
+    const commenterUsernames = [...new Set(commentsFlat.map(c => c.postername))]
         .sort()
         .filter(s => s !== "")
         .filter(s => existingPeopleUsernames.find(f => f == s) == undefined);
@@ -76,7 +69,20 @@ async function main() {
     header(`Getting inbox`);
     await ljDumper.getInbox();
 
-
+    header("Getting polls");
+    const RegExp_Poll = /<lj-poll-(\d+)>/g;
+    // Extract all pollids from all posts
+    const pollIdsSet = new Set<number>();
+    for (let event of events) {
+        //console.log(event.itemid);
+        const results = [...event.event.matchAll(RegExp_Poll)];
+        for (let result of results) {
+            pollIdsSet.add(parseInt(result[1]));
+        }
+    }
+    const pollIds = [...pollIdsSet];
+    console.log(pollIds);
+    await ljDumper.getPolls(pollIds);
 
     //header(`Archiving friend journals`);
     //for (let friend of friends) {
