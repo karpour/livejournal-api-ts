@@ -17,6 +17,7 @@ import { createYearMonthGenerator } from "../createYearMonthGenerator";
 import { createExportEventGenerator } from "../parsePostExportsCsv";
 
 import { pipeline } from "stream/promises";
+import { LiveJournalApiError } from "../LiveJournalApiError";
 
 export function sleepMs(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -220,7 +221,7 @@ export default class LJDumper {
                 //console.log(`Writing event ${event.itemid}`);
                 const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
                 //if (!existsSync(eventFileName)) {
-                    writeFileSync(eventFileName, JSON.stringify(event, null, 4));
+                writeFileSync(eventFileName, JSON.stringify(event, null, 4));
                 //}
             }
         }
@@ -265,13 +266,21 @@ export default class LJDumper {
             for (let page = 0; ; page++) {
                 let response: LiveJournalGetCommentsResponseExtended;
 
-                response = (await this.ljApi.getComments({
-                    itemid: itemid,
-                    journal: journal ?? this.ljApi.userName,
-                    page_size: 100,
-                    page,
-                    format: "list"
-                }));
+                try {
+                    response = (await this.ljApi.getComments({
+                        itemid: itemid,
+                        journal: journal ?? this.ljApi.userName,
+                        page_size: 100,
+                        page,
+                        format: "list"
+                    }));
+                } catch (err: any) {
+                    if (err instanceof LiveJournalApiError && err.code === 300) {
+                        console.error("Don't have access to requested journal");
+                        continue;
+                    }
+                    throw err;
+                }
 
                 comments.push(...response.comments);
                 if (response.comments.length < 100) break;
@@ -285,7 +294,7 @@ export default class LJDumper {
 
     public async writeComment(itemid: number, comments: LiveJournalComment[]) {
         mkdirSync(this.EXPORT_COMMENTS_DIR, { recursive: true });
-        console.log(`Writing comment file ${itemid}`)
+        console.log(`Writing comment file ${itemid}`);
         const fileName = path.join(this.EXPORT_COMMENTS_DIR, `${itemid}.json`);
         writeFileSync(fileName, JSON.stringify(replaceBuffers(comments), null, 4));
     }

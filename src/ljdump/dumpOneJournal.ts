@@ -35,19 +35,22 @@ async function main() {
     const header = (text: string) => console.log(`\n\x1b[32m${text}\x1b[0m`);
 
     const journal = process.argv[2];
-    header(`Archiving ${journal}`);
+    console.log(`Archiving ${journal}\n`);
     const outDir = `./output/friendjournals/${journal}/`;
     const dumper = new LJDumper(ljApi, outDir);
+    header(`Archiving ${journal} events`);
     const events = await dumper.getEvents(journal);
-    shuffleArray(events);
 
+    header(`Archiving ${journal} comments`);
+    const missingCommentEvents = events.filter(event => !existsSync(path.join(outDir, "export_comments", `${event.itemid}.json`)))
+    shuffleArray(missingCommentEvents);
 
     let cnt = 0;
     let processed = 0;
-    for (let event of events) {
+    for (let event of missingCommentEvents) {
         cnt++;
         if (existsSync(path.join(outDir, "export_comments", `${event.itemid}.json`))) continue;
-        console.log(`Comment ${cnt}/${events.length}`);
+        console.log(`Comment ${cnt}/${missingCommentEvents.length}`);
         await dumper.getComments(event.itemid, journal);
         processed++;
 

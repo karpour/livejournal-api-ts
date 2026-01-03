@@ -194,7 +194,7 @@ export type LiveJournalApiAuthParams = {
 
 export function convertBuffer<K extends string>(key: K, item: { [key in K]: any; }) {
     if (item[key].type == "Buffer" && item[key].data) {
-        console.log("Converted buffer");
+        //console.log("Converted buffer");
         const v = Buffer.from(item[key].data);
         item[key] = v.toString();
     }
@@ -203,7 +203,7 @@ export function convertBuffer<K extends string>(key: K, item: { [key in K]: any;
 export function replaceBuffers(value: any): any {
 
     if (value instanceof Buffer) {
-        console.error("Converted buffer");
+        //console.error("Converted buffer");
         return value.toString("utf8");
     }
 

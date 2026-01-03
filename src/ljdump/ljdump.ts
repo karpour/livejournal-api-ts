@@ -39,10 +39,10 @@ async function main() {
     const events = await ljDumper.getEvents();
 
     header("Getting export events");
-    const exportEvents = await ljDumper.readExportEvents();
+    await ljDumper.getExportEvents();
 
     header("Getting comments");
-    const comments = await ljDumper.getAllComments(exportEvents);
+    const comments = await ljDumper.getAllComments(events);
     const commentsFlat = Object.values(comments).flat()
 
     // Get user data of commenters
