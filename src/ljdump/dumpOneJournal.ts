@@ -31,35 +31,29 @@ function shuffleArray(array: any[]) {
     }
 }
 
-export async function dumpOneJournal(journal:string) {
+export async function dumpOneJournal(journal: string) {
     const header = (text: string) => console.log(`\n\x1b[32m${text}\x1b[0m`);
 
     console.log(`Archiving ${journal}\n`);
     const outDir = `./output/friendjournals/${journal}/`;
     const ljDumper = new LJDumper(ljApi, outDir);
 
-    header(`Archiving ${journal} photos`);
-    const albumIds = await ljDumper.getAlbumIds();
-    console.log(albumIds);
+    //header(`Archiving ${journal} photos`);
+    //const albumIds = await ljDumper.getAlbumIds();
+    //console.log(albumIds);
 
     header(`Archiving ${journal} events`);
     const events = await ljDumper.getEvents(journal);
-
-    header("Getting images");
-    await ljDumper.getImages(events);
 
     header(`Archiving ${journal} comments`);
     const missingCommentEvents = events.filter(event => !existsSync(path.join(outDir, "export_comments", `${event.itemid}.json`)));
     shuffleArray(missingCommentEvents);
 
-    let cnt = 0;
     let processed = 0;
     for (let event of missingCommentEvents) {
-        cnt++;
-        if (existsSync(path.join(outDir, "export_comments", `${event.itemid}.json`))) continue;
-        console.log(`Comment ${cnt}/${missingCommentEvents.length}`);
-        await ljDumper.getComments(event.itemid, journal);
         processed++;
+        console.log(`Comment ${processed}/${missingCommentEvents.length}`);
+        await ljDumper.getComments(event.itemid, journal);
 
         await sleepMs(2000 + Math.round(Math.random() * 1000));
         if (processed % 50 == 0) {
@@ -67,6 +61,9 @@ export async function dumpOneJournal(journal:string) {
             await sleepMs(60000);
         }
     }
+
+    header("Getting images");
+    await ljDumper.getImages(events);
 }
 
 dumpOneJournal(process.argv[2]);
