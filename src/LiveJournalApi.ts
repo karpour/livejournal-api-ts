@@ -172,6 +172,7 @@ const LIVEJOURNAL_JSONRPC_API_METHODS = [
     'notifications.get_events',
     'photo.get_albums',
     'user.get',
+    'photo.getalbum',
 
 ] as const;
 export type LiveJournalJsonRpcApiMethod = typeof LIVEJOURNAL_JSONRPC_API_METHODS[number];

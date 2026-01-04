@@ -1,4 +1,4 @@
-import { createReadStream, createWriteStream, existsSync, fstat, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import { createReadStream, createWriteStream, existsSync, fstat, link, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
 import LiveJournalApi, { LiveJournalGetCommentsResponseExtended, LiveJournalUserPicFileFormats, replaceBuffers, throttled } from "..";
 import {
@@ -18,6 +18,7 @@ import { createExportEventGenerator } from "../parsePostExportsCsv";
 
 import { pipeline } from "stream/promises";
 import { LiveJournalApiError } from "../LiveJournalApiError";
+import { JSDOM } from "jsdom";
 
 export function sleepMs(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -139,6 +140,44 @@ export default class LJDumper {
             console.log(`Writing ${filePath}: ${event.subject}`);
             writeFileSync(filePath, JSON.stringify(event, null, 4));
         }
+    }
+
+
+    public async getAlbumIds(userName?: string) {
+        userName ??= this.ljApi.userName;
+        const url = `https://${userName}.livejournal.com/photo/`;
+        // Fetch raw HTML
+        const response = await fetch(url);
+        const html = await response.text();
+
+        // Create DOM
+        const dom = new JSDOM(html);
+        const document = dom.window.document;
+
+        // Get all <a> elements
+        const links = Array.from(document.querySelectorAll("a"));
+        console.log(links.map(a => a.getAttribute("href")));
+
+        // Extract hrefs and filter
+        const albumLinks = links
+            .map(a => a.getAttribute("href"))
+            .filter(
+                href => typeof href === "string" && href.startsWith("/photo/album/")
+            ).map(id => parseInt(id!.replace(/[^\d]/g, "")));
+
+        return albumLinks;
+    }
+
+
+    public async dumpAlbums(albumIds: number[], userName?: string): Promise<void> {
+        for (const albumId of albumIds) {
+            await this.dumpAlbum(albumId, userName);
+        }
+    }
+
+    public async dumpAlbum(albumId: number, userName?: string): Promise<void> {
+        userName ??= this.ljApi.userName;
+        const url = `https://${userName}.livejournal.com/photo/album/${albumId}/`;
     }
 
     public async getEvents(journal?: string): Promise<LiveJournalEvent[]> {
