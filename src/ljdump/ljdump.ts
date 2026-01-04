@@ -1,7 +1,9 @@
 import { readFileSync } from "fs";
 import LiveJournalApi from "..";
 import LJDumper from "./LJDumper";
-import { parse } from "path";
+import path, { parse } from "path";
+const crypto = require('crypto');
+
 
 const credentials = JSON.parse(readFileSync("credentials.json").toString());
 const username = credentials.username;
@@ -38,12 +40,15 @@ async function main() {
     header("Getting recent events");
     const events = await ljDumper.getEvents();
 
+    header("Getting images");
+    await ljDumper.getImages(events);
+
     header("Getting export events");
     await ljDumper.getExportEvents();
 
     header("Getting comments");
     const comments = await ljDumper.getAllComments(events);
-    const commentsFlat = Object.values(comments).flat()
+    const commentsFlat = Object.values(comments).flat();
 
     // Get user data of commenters
     const friendUsernames = friends.map(u => u.username);

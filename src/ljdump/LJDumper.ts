@@ -15,13 +15,27 @@ import {
 } from "../types";
 import { createYearMonthGenerator } from "../createYearMonthGenerator";
 import { createExportEventGenerator } from "../parsePostExportsCsv";
+import crypto from "crypto";
 
 import { pipeline } from "stream/promises";
 import { LiveJournalApiError } from "../LiveJournalApiError";
 import { JSDOM } from "jsdom";
+import { Readable } from "stream";
 
 export function sleepMs(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export function getImageFilename(urlString: string): { directory: string, filename: string; } {
+    const url = new URL(urlString);
+    const directory = url.hostname;
+    const ext = path.extname(url.pathname);
+    const urlPart = urlString.replace(/^https?:\/\//, "");
+    const hash = crypto.createHash('md5').update(urlPart).digest("hex");
+    return {
+        directory,
+        filename: `${directory}_${hash}${ext !== "" ? `${ext}` : ".jpg"}`
+    };
 }
 
 export default class LJDumper {
@@ -36,6 +50,7 @@ export default class LJDumper {
     private readonly EXPORT_EVENTS_DIR: string;
     private readonly EXPORT_EVENTS_CSV_DIR: string;
     private readonly USERPICS_DIR: string;
+    private readonly IMAGES_DIR: string;
     private readonly FOAF_DIR: string;
     private readonly PROFILE_DIR: string;
 
@@ -52,6 +67,7 @@ export default class LJDumper {
         this.EXPORT_EVENTS_DIR = path.join(outDir, 'export_events');
         this.EXPORT_EVENTS_CSV_DIR = path.join(outDir, 'export_events_csv');
         this.USERPICS_DIR = path.join(outDir, 'user_pics');
+        this.IMAGES_DIR = path.join(outDir, 'images');
         this.PROFILE_DIR = path.join(outDir, 'profiles');
         this.FOAF_DIR = path.join(outDir, 'foaf');
 
@@ -113,7 +129,12 @@ export default class LJDumper {
         const events = dir
             .filter(f => f.endsWith(".json"))
             .map(e => {
-                return JSON.parse(readFileSync(path.join(this.EVENTS_DIR, e)).toString()) as LiveJournalEvent;
+                try {
+
+                    return JSON.parse(readFileSync(path.join(this.EVENTS_DIR, e)).toString()) as LiveJournalEvent;
+                } catch (err: any) {
+                    throw new Error(`Can not parse ${path.join(this.EVENTS_DIR, e)}`);
+                }
             });
         //console.log(events);
         return events;
@@ -363,6 +384,70 @@ export default class LJDumper {
         await pipeline(response.file, targetFile);
         return targetFilePath;
     }
+
+    public async getImages(events: LiveJournalEvent[]): Promise<void> {
+        mkdirSync(this.IMAGES_DIR, { recursive: true });
+        if (existsSync(path.join(this.IMAGES_DIR, ".done"))) {
+            console.log("Already done getImages, skipping");
+            return;
+        }
+        const imageUrls = [...new Set(events
+            .map(e => e.event)
+            .map(e => [...e.matchAll(/src\s?=\s?"(https?:\/\/[^"]+)"/g)].map(url => url[1]))
+            .filter(e => e !== undefined)
+            .flat())];
+
+        for (let imageUrl of imageUrls) {
+            const { directory: d, filename: f } = getImageFilename(imageUrl);
+            //const directory = path.join(this.IMAGES_DIR, d);
+            const filename = path.join(this.IMAGES_DIR, f);
+
+            if (filename.includes("ohnitsch")) continue;
+            if (existsSync(filename)) continue;
+            // Replace s640x480 and s320x240 to get original lj images
+            imageUrl = imageUrl.replace(/s\d\d\dx\d\d\d$/, "");
+
+            if (imageUrl.includes("webshots") || imageUrl.includes("imageshack")) continue;
+            //if (!existsSync(directory)) mkdirSync(directory, { recursive: true });
+            console.log(`Downloading ${imageUrl}`);
+            await this.downloadImage(imageUrl, filename);
+        }
+    }
+    public async downloadImage(imageUrl: string, targetFileName: string): Promise<void> {
+
+        try {
+            const response = await fetch(imageUrl);
+
+            if (!response.ok) {
+                //console.error(`  Failed to download image. HTTP status: ${response.status}`);
+                return;
+            }
+
+            const contentType = response.headers.get("content-type");
+
+            if (!contentType || !contentType.startsWith("image/")) {
+                //console.error(`  Invalid MIME type: ${contentType}`);
+                return;
+            }
+
+            if (!response.body) {
+                //console.error("  Response has no body.");
+                return;
+            }
+
+            const fileStream = createWriteStream(targetFileName);
+
+            // Convert Web ReadableStream to Node.js Readable
+            const nodeStream = Readable.fromWeb(response.body as any);
+
+            await pipeline(nodeStream, fileStream);
+            console.log(`  SUCCESS`);
+            await sleepMs(500);
+        } catch (error: any) {
+            //console.error("Error downloading image:", error.message);
+        }
+    }
+
 
     public async getInbox(): Promise<LiveJournalPrivateMessageExtended[]> {
         const inboxFilename = path.join(this.outDir, `inbox.json`);
