@@ -49,21 +49,48 @@ export async function dumpOneJournal(journal: string) {
     const missingCommentEvents = events.filter(event => !existsSync(path.join(outDir, "export_comments", `${event.itemid}.json`)));
     shuffleArray(missingCommentEvents);
 
+
+    const reqsPerHour = 500;
+    const start = new Date();
     let processed = 0;
+    await keypress();
     for (let event of missingCommentEvents) {
         processed++;
         console.log(`Comment ${processed}/${missingCommentEvents.length}`);
-        await ljDumper.getComments(event.itemid, journal);
-
-        await sleepMs(2000 + Math.round(Math.random() * 1000));
-        if (processed % 50 == 0) {
-            console.log(`1 minute pause`);
-            await sleepMs(60000);
+        try {
+            await ljDumper.getComments(event.itemid, journal);
+        } catch (err: any) {
+            // Push event back on list
+            missingCommentEvents.push(event);
+            console.error("Stopped on error");
+            console.error(err.message);
+            await keypress();
         }
+
+        //await sleepMs(3600000 / reqsPerHour);
+        if (processed % 500 == 0) await keypress();
     }
+    const end = new Date();
+    const minutes = minutesDiff(start, end);
+    const hours = minutes / 60;
+    console.log(`Did ${processed} requests in ${Math.round(minutes)} minutes (${processed / hours} req/hr)`);
 
     header("Getting images");
-    await ljDumper.getImages(events);
+    await ljDumper.getEventImages(events);
+}
+
+function minutesDiff(date1: Date, date2: Date) {
+    return Math.abs(date1.getTime() - date2.getTime()) / 60000;
+}
+
+function keypress() {
+    process.stdout.write('\u0007');
+    console.log("Press any key to continue");
+    process.stdin.setRawMode(true);
+    return new Promise<void>(resolve => process.stdin.once('data', () => {
+        process.stdin.setRawMode(false);
+        resolve();
+    }));
 }
 
 dumpOneJournal(process.argv[2]);

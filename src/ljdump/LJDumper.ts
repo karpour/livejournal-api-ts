@@ -337,7 +337,6 @@ export default class LJDumper {
                 } catch (err: any) {
                     if (err instanceof LiveJournalApiError && err.code === 300) {
                         console.error("Don't have access to requested journal");
-                        continue;
                     }
                     throw err;
                 }
@@ -385,7 +384,7 @@ export default class LJDumper {
         return targetFilePath;
     }
 
-    public async getImages(events: LiveJournalEvent[]): Promise<void> {
+    public async getEventImages(events: LiveJournalEvent[]): Promise<void> {
         mkdirSync(this.IMAGES_DIR, { recursive: true });
         if (existsSync(path.join(this.IMAGES_DIR, ".done"))) {
             console.log("Already done getImages, skipping");
@@ -396,6 +395,11 @@ export default class LJDumper {
             .map(e => [...e.matchAll(/src\s?=\s?"(https?:\/\/[^"]+)"/g)].map(url => url[1]))
             .filter(e => e !== undefined)
             .flat())];
+
+        return this.getImages(imageUrls);
+    }
+
+    public async getImages(imageUrls: string[]): Promise<void> {
 
         for (let imageUrl of imageUrls) {
             const { directory: d, filename: f } = getImageFilename(imageUrl);
@@ -413,6 +417,7 @@ export default class LJDumper {
             await this.downloadImage(imageUrl, filename);
         }
     }
+
     public async downloadImage(imageUrl: string, targetFileName: string): Promise<void> {
 
         try {

@@ -41,7 +41,7 @@ async function main() {
     const events = await ljDumper.getEvents();
 
     header("Getting images");
-    await ljDumper.getImages(events);
+    await ljDumper.getEventImages(events);
 
     header("Getting export events");
     await ljDumper.getExportEvents();
