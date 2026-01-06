@@ -386,7 +386,7 @@ export class LiveJournalApi {
                 throw new LiveJournalApiError(err.faultString, err.code);
             }
             throw err;
-        }) as Promise<TReturn>;
+        }).then(replaceBuffers) as Promise<TReturn>;
     };
 
     @throttled()

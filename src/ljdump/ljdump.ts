@@ -1,16 +1,13 @@
 import { readFileSync } from "fs";
 import LiveJournalApi from "..";
 import LJDumper from "./LJDumper";
-import path, { parse } from "path";
-const crypto = require('crypto');
+import { LiveJournalApiError } from "../LiveJournalApiError";
 
-
-const credentials = JSON.parse(readFileSync("credentials.json").toString());
+const credentials = JSON.parse(readFileSync(process.argv[2] ?? "credentials.json").toString());
 const username = credentials.username;
 const password = credentials.password;
 
 const OUT_DIR = `./output/${username}/`;
-
 
 const ljApi = new LiveJournalApi({
     authMethod: "clear",
@@ -32,10 +29,8 @@ async function main() {
     const friendOfs = await ljDumper.getFriendOf();
 
     header("Getting friend groups");
-    const friendGroups = await ljDumper.getFriendGroups();
 
     header("Getting user profile");
-    const userProfile = await ljDumper.getUserProfile();
 
     header("Getting recent events");
     const events = await ljDumper.getEvents();
@@ -89,13 +84,26 @@ async function main() {
     console.log(pollIds);
     await ljDumper.getPolls(pollIds);
 
-    //header(`Archiving friend journals`);
-    //for (let friend of friends) {
-    //    const friendName = friend.username;
-    //    header(`Archiving ${friendName}`);
-    //    const dumper = new LJDumper(ljApi, `./output/friendjournals/${friendName}/`);
-    //    await dumper.getEvents(friendName);
-    //}
+    header(`Archiving friend journals`);
+    for (let friend of friends) {
+        const friendName = friend.username;
+
+        const dumper = new LJDumper(ljApi, `./output/friendjournals/${friendName}/`);
+        if (dumper.eventsDone()) {
+            console.log(`Skipping ${friend.username}`);
+            continue;
+        }
+        header(`Archiving ${friendName}`);
+        try {
+            await dumper.getEvents(friendName);
+        } catch (err: any) {
+            if (err instanceof LiveJournalApiError && err.code == 307) {
+                console.log(err.message);
+                continue;
+            }
+            throw err;
+        }
+    }
 
 
     //const ev = events[0];

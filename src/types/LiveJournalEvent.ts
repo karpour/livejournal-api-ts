@@ -1,6 +1,7 @@
 import { buffer } from "stream/consumers";
 import { convertLiveJournalApiBool, LiveJournalApiBool, convertLiveJournalDateString, LiveJournalDateString, LiveJournalSecurity } from ".";
 import { Replace } from "../Replace";
+import { convertBuffer, replaceBuffers } from "../LiveJournalApi";
 
 export type LiveJournalEvent = {
     /** Entry internal identifier */
@@ -172,7 +173,16 @@ export type LiveJournalEventPropsRaw = Replace<LiveJournalEventProps, {
 /** @internal */
 export function convertLiveJournalTagsList(list: string | undefined): string[] {
     if (!list) return [];
-    return list.split(/,\s*/).map(item => item.trim());
+    try {
+        const listarray = `${list}`.split(/,\s*/).map(item => item.trim());
+        return listarray;
+    } catch (err) {
+        console.log(err);
+        console.log(typeof list);
+        console.log(list);
+        process.exit(0);
+    }
+    return [];
 }
 
 /** @internal */
