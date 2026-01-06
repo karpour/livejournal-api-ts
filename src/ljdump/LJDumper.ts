@@ -201,7 +201,67 @@ export default class LJDumper {
         const url = `https://${userName}.livejournal.com/photo/album/${albumId}/`;
     }
 
-    public async getEvents(journal?: string): Promise<LiveJournalEvent[]> {
+    public eventsDone(): boolean {
+        return existsSync(path.join(this.EVENTS_DIR, ".done"));
+    }
+
+    public async getMissingEvents(e: LiveJournalEvent[], lowestItem: number = 10000000, journal?: string): Promise<LiveJournalEvent[]> {
+        const ids = e.map(e => e.itemid).sort((a, b) => (a - b));
+        const missingIds: number[] = [];
+        for (let i = 0; i < ids.length; i++) {
+            //console.log(ids[i]);
+            if (ids[i] + 1 !== ids[i + 1]) {
+                //console.log(ids[i]);
+                for (let j = ids[i] + 1; j < ids[i + 1]; j++) {
+                    //console.log(`  ${j}`);
+                    missingIds.push(j);
+                }
+                //console.log(ids[i + 1]);
+            }
+        }
+        const missingIdChunks: number[][] = [];
+        const chunkSize = 32;
+        for (let i = 0; i < missingIds.length; i += chunkSize) {
+            missingIdChunks.push(missingIds.slice(i, i + chunkSize));
+        }
+        //console.log(missingIdChunks);
+
+        for (let chunk of missingIdChunks.reverse()) {
+            const rangeString = chunk.reverse().join(",");
+            const chunkLowestItem = chunk[chunk.length - 1];
+            if (chunkLowestItem > lowestItem) continue;
+
+            const events = (await this.ljApi.getEvents({
+                selecttype: "multiple",
+                usejournal: journal ?? this.ljApi.userName,
+                lineendings: "unix",
+                parseljtags: false,
+                itemids: rangeString
+            })).events;
+            writeFileSync(path.join(this.EVENTS_DIR, ".low"), `${chunkLowestItem}`);
+            console.log(`Getting missing events ${chunk[0]}-${chunkLowestItem} (Received ${events.length}/${chunk.length})`);
+            for (let event of events) {
+                e.push(event);
+                //console.log(`Writing event ${event.itemid}`);
+                const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
+                //if (!existsSync(eventFileName)) {
+                writeFileSync(eventFileName, JSON.stringify(event, null, 4));
+
+                //}
+            }
+        }
+        if (existsSync(path.join(this.EVENTS_DIR, ".low"))) unlinkSync(path.join(this.EVENTS_DIR, ".low"));
+
+        return e;
+    }
+
+    public async deleteEvent(event: LiveJournalEvent) {
+        const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
+        console.log(`Deleting ${eventFileName} (${event.url})`);
+        unlinkSync(eventFileName);
+    }
+
+    public async getEvents(journal?: string, onlyMissing:boolean = false): Promise<LiveJournalEvent[]> {
         mkdirSync(this.EVENTS_DIR, { recursive: true });
         if (existsSync(path.join(this.EVENTS_DIR, ".done"))) return this.readEvents();
         let lowestItem = 1000000;
@@ -218,45 +278,61 @@ export default class LJDumper {
         const howmany = 32;
 
         let prevLowestItem;
+        let curLowestItem = lowestItem;
 
-        if (!skipInitialStep) {
+        if (!skipInitialStep && !onlyMissing) {
+            let firstCall = true;
             while (true) {
+                try {
+                    const events = (await this.ljApi.getEvents({
+                        selecttype: "lastn",
+                        usejournal: journal ?? this.ljApi.userName,
+                        lineendings: "unix",
+                        parseljtags: false,
+                        howmany,
+                        skip
+                    })).events;
 
-                const events = (await this.ljApi.getEvents({
-                    selecttype: "lastn",
-                    usejournal: journal ?? this.ljApi.userName,
-                    lineendings: "unix",
-                    parseljtags: false,
-                    howmany,
-                    skip
-                })).events;
 
 
-
-                console.log(`Getting events ${skip}-${skip + events.length}`);
-                if (events.length == 0) {
-                    break;
-                }
-                skip += howmany;
-                prevLowestItem = lowestItem;
-
-                for (let event of events) {
-                    lowestItem = Math.min(lowestItem, event.itemid);
-                    e.push(event);
-                    console.log(`Writing event ${event.itemid}`);
-                    const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
-                    if (!existsSync(eventFileName)) {
-                        writeFileSync(eventFileName, JSON.stringify(event, null, 4));
+                    console.log(`Getting events ${skip}-${skip + events.length}`);
+                    if (events.length == 0) {
+                        if (firstCall) {
+                            console.log(`Journal contains no events`);
+                            writeFileSync(path.join(this.EVENTS_DIR, ".done"), "");
+                            return [];
+                        }
+                        break;
                     }
-                }
-                if (lowestItem == prevLowestItem) {
-                    console.log(`Previous lowest item = current lowest item, fetching stalled: ${lowestItem}`);
-                    break;
+                    firstCall = false;
+                    skip += howmany;
+                    prevLowestItem = curLowestItem;
+
+                    for (let event of events) {
+                        lowestItem = Math.min(curLowestItem, event.itemid);
+                        e.push(event);
+                        console.log(`Writing event ${event.itemid}`);
+                        const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
+                        if (!existsSync(eventFileName)) {
+                            writeFileSync(eventFileName, JSON.stringify(event, null, 4));
+                        }
+                    }
+                    if (curLowestItem == prevLowestItem) {
+                        console.log(`Previous lowest item = current lowest item, fetching stalled: ${curLowestItem}`);
+                        break;
+                    }
+                } catch (err: any) {
+                    if (err instanceof LiveJournalApiError && err.code == 307) {
+                        console.log("Deleted journal");
+                        writeFileSync(path.join(this.EVENTS_DIR, ".done"), "");
+                        return [];
+                    }
+                    throw err;
                 }
             }
         }
 
-        const step = 32;
+        /*const step = 32;
         for (let i = lowestItem; i > 0; i -= step) {
             let range: number[] = [];
             const min = Math.max(0, i - step);
@@ -284,7 +360,9 @@ export default class LJDumper {
                 writeFileSync(eventFileName, JSON.stringify(event, null, 4));
                 //}
             }
-        }
+        }*/
+
+        await this.getMissingEvents(e, lowestItem, journal);
 
         writeFileSync(path.join(this.EVENTS_DIR, ".done"), "");
         if (existsSync(path.join(this.EVENTS_DIR, ".low"))) unlinkSync(path.join(this.EVENTS_DIR, ".low"));
@@ -402,14 +480,16 @@ export default class LJDumper {
         if (existsSync(path.join(this.IMAGES_DIR, ".done"))) {
             console.log("Already done getImages, skipping");
             return;
-        }
-        const imageUrls = [...new Set(events
-            .map(e => e.event)
-            .map(e => [...e.matchAll(/src\s?=\s?"(https?:\/\/[^"]+)"/g)].map(url => url[1]))
-            .filter(e => e !== undefined)
-            .flat())];
+        } else {
+            const imageUrls = [...new Set(events
+                .map(e => e.event)
+                .map(e => [...e.matchAll(/src\s?=\s?"(https?:\/\/[^"]+)"/g)].map(url => url[1]))
+                .filter(e => e !== undefined)
+                .flat())];
+            writeFileSync(path.join(this.USERPICS_DIR, ".done"), "");
 
-        return this.getImages(imageUrls);
+            return this.getImages(imageUrls);
+        }
     }
 
     public async getImages(imageUrls: string[]): Promise<void> {
@@ -612,7 +692,7 @@ export default class LJDumper {
                 //console.log(`Downloaded Pic ${userPicResult}`);
             }
         }
-        writeFileSync(path.join(this.USERPICS_DIR, ".done2"), "");
+        writeFileSync(path.join(this.USERPICS_DIR, ".done"), "");
 
     }
 
