@@ -84,6 +84,7 @@ async function main() {
     console.log(pollIds);
     await ljDumper.getPolls(pollIds);
 
+    return;
     header(`Archiving friend journals`);
     for (let friend of friends) {
         const friendName = friend.username;

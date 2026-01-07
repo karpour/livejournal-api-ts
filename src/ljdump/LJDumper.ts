@@ -396,12 +396,11 @@ export default class LJDumper {
         mkdirSync(this.EXPORT_COMMENTS_DIR, { recursive: true });
 
         const fileName = path.join(this.EXPORT_COMMENTS_DIR, `${itemid}.json`);
-
         if (existsSync(fileName)) {
             console.log(`Reading comments from ${fileName}`);
             return JSON.parse(readFileSync(fileName).toString()) as LiveJournalComment[];
         } else {
-            const comments: any = [];
+            const comments: LiveJournalComment[] = [];
 
             for (let page = 0; ; page++) {
                 let response: LiveJournalGetCommentsResponseExtended;
@@ -420,8 +419,23 @@ export default class LJDumper {
                     }
                     throw err;
                 }
-                comments.push(...response.comments);
-                if (response.comments.length < 100) break;
+                let responseComments = response.comments;
+                //console.log(responseComments[0]);
+                if (page > 0) {
+                    console.log(`Page ${page}`);
+                    //console.log(`responseComments.length=${responseComments.length}`)
+                    responseComments = response.comments.filter(
+                        c => comments.find(d => d.dtalkid == c.dtalkid) == undefined
+                    );
+                    //console.log(`responseComments.length=${responseComments.length}`)
+                    if (responseComments.length == 0) {
+                        console.error(`No new comments coming in`);
+                        break;
+                    }
+                }
+
+                comments.push(...responseComments);
+                if (responseComments.length < 100) break;
             }
 
             console.log("Writing comments");
