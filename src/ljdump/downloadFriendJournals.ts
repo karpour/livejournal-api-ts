@@ -28,16 +28,16 @@ async function main() {
     let cnt = 0;
     for (let friend of friends) {
         const friendName = friend.username;
-
+        cnt++;
         const dumper = new LJDumper(ljApi, `./output/friendjournals/${friendName}/`);
-        //if (dumper.eventsDone()) {
-        //    console.log(`Skipping ${friend.username}`);
-        //    continue;
-        //}
-        header(`Archiving ${friendName} (${++cnt}/${friends.length})`);
+        if (dumper.eventsDone()) {
+            console.log(`Skipping ${friend.username}`);
+            continue;
+        }
+        header(`Archiving ${friendName} (${cnt}/${friends.length})`);
         try {
             const events = await dumper.getEvents(friendName, true);
-            //await dumper.getMissingEvents(events, 100000000, friendName);
+           // await dumper.getMissingEvents(events, 100000000, friendName);
         } catch (err: any) {
             if (err instanceof LiveJournalApiError && err.code == 307) {
                 console.log(err.message);

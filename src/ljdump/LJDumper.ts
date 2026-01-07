@@ -261,7 +261,7 @@ export default class LJDumper {
         unlinkSync(eventFileName);
     }
 
-    public async getEvents(journal?: string, onlyMissing:boolean = false): Promise<LiveJournalEvent[]> {
+    public async getEvents(journal?: string, onlyMissing: boolean = false): Promise<LiveJournalEvent[]> {
         mkdirSync(this.EVENTS_DIR, { recursive: true });
         if (existsSync(path.join(this.EVENTS_DIR, ".done"))) return this.readEvents();
         let lowestItem = 1000000;
@@ -273,6 +273,8 @@ export default class LJDumper {
         }
 
         const e: LiveJournalEvent[] = [];
+        if (onlyMissing) e.push(...await this.readEvents());
+        if (e.length == 0) onlyMissing = false;
         if (journal) console.log(`Importing events for ${journal}`);
         let skip = 0;
         const howmany = 32;
@@ -309,7 +311,7 @@ export default class LJDumper {
                     prevLowestItem = curLowestItem;
 
                     for (let event of events) {
-                        lowestItem = Math.min(curLowestItem, event.itemid);
+                        curLowestItem = Math.min(curLowestItem, event.itemid);
                         e.push(event);
                         console.log(`Writing event ${event.itemid}`);
                         const eventFileName = path.join(this.EVENTS_DIR, `${event.itemid}.json`);
