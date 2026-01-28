@@ -1,6 +1,7 @@
 
 export type LiveJournalCookieData = {
     ljsession: string;
+    //ljloggedin: string;
     expires: Date;
 };
 

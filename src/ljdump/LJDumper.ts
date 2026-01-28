@@ -1,4 +1,4 @@
-import { createReadStream, createWriteStream, existsSync, fstat, link, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import { appendFileSync, createReadStream, createWriteStream, existsSync, fstat, link, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import path from "path";
 import LiveJournalApi, { LiveJournalGetCommentsResponseExtended, LiveJournalUserPicFileFormats, replaceBuffers, throttled } from "..";
 import {
@@ -21,6 +21,8 @@ import { pipeline } from "stream/promises";
 import { LiveJournalApiError } from "../LiveJournalApiError";
 import { JSDOM } from "jsdom";
 import { Readable } from "stream";
+import fetch from "node-fetch";
+
 
 export function sleepMs(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -54,8 +56,10 @@ export default class LJDumper {
     private readonly FOAF_DIR: string;
     private readonly PROFILE_DIR: string;
 
+    private skipImages: string[] = [];
 
-    public constructor(protected ljApi: LiveJournalApi, protected outDir: string) {
+
+    public constructor(protected ljApi: LiveJournalApi, protected outDir: string, protected skipmages: string[] = []) {
         this.FRIENDS_FILE = path.join(outDir, 'friends.json');
         this.FRIENDOF_FILE = path.join(outDir, 'friendof.json');
         this.FRIENDGROUPS_FILE = path.join(outDir, 'friendgroups.json');
@@ -74,6 +78,8 @@ export default class LJDumper {
         if (!existsSync(outDir)) {
             mkdirSync(outDir, { recursive: true });
         }
+
+
     }
 
     public async getExportEvents(): Promise<LiveJournalExportEvent[]> {
@@ -485,66 +491,113 @@ export default class LJDumper {
         } else {
             const imageUrls = [...new Set(events
                 .map(e => e.event)
-                .map(e => [...e.matchAll(/src\s?=\s?"(https?:\/\/[^"]+)"/g)].map(url => url[1]))
+                .map(e => [...(typeof e == "string" ? e.matchAll(/src\s?=\s?"(https?:\/\/[^"]+)"/g) : [])].map(url => url[1]))
                 .filter(e => e !== undefined)
                 .flat())];
-            writeFileSync(path.join(this.USERPICS_DIR, ".done"), "");
+            //.filter(e => e.includes("livejournal.com"));
 
             return this.getImages(imageUrls);
         }
     }
 
     public async getImages(imageUrls: string[]): Promise<void> {
-
+        mkdirSync(this.IMAGES_DIR, { recursive: true });
+        let cnt = 0;
+        let skipped = 0;
+        let downloaded = 0;
+        let errors = 0;
+        console.log(imageUrls.slice(0, 10));
+        console.log(`Getting ${imageUrls.length} images`);
         for (let imageUrl of imageUrls) {
+            cnt++;
             const { directory: d, filename: f } = getImageFilename(imageUrl);
             //const directory = path.join(this.IMAGES_DIR, d);
             const filename = path.join(this.IMAGES_DIR, f);
 
-            if (filename.includes("ohnitsch")) continue;
-            if (existsSync(filename)) continue;
+            //if (filename.includes("ohnitsch")) continue;
+            if (existsSync(filename)) {
+                skipped++;
+                continue;
+            }
+
+            if(imageUrl.includes("webshots")) continue;
+            if(imageUrl.includes("imageshack.us")) continue;
+
+
             // Replace s640x480 and s320x240 to get original lj images
             imageUrl = imageUrl.replace(/s\d\d\dx\d\d\d$/, "");
+            // p-userpic.livejournal.com doesnt exist anymore it seems.
+            imageUrl = imageUrl.replace("p-userpic.livejournal.com", "l-userpic.livejournal.com");
 
-            if (imageUrl.includes("webshots") || imageUrl.includes("imageshack")) continue;
-            //if (!existsSync(directory)) mkdirSync(directory, { recursive: true });
-            console.log(`Downloading ${imageUrl}`);
-            await this.downloadImage(imageUrl, filename);
+            console.log(`Downloading ${imageUrl} => ${filename} (${cnt}/${imageUrls.length})`);
+            if (this.skipImages.includes(imageUrl)) {
+                console.log("Skipped 412 image");
+                continue;
+            }
+            try {
+                await this.downloadImage(imageUrl, filename);
+                downloaded++;
+            } catch (err: any) {
+                console.log(`  Error ${imageUrl} : ${err.message}`);
+                try {
+                    imageUrl = `https://web.archive.org/web/2010if_/${imageUrl}`;
+                    console.log(`  [IA] Downloading ${imageUrl} => ${filename} (${cnt}/${imageUrls.length})`);
+                    await this.downloadImage(imageUrl, filename);
+                    console.log(`  [IA] SUCCESS`)
+                } catch (err: any) {
+                    console.log(`    Error ${imageUrl} : ${err.message}`);
+                    errors++;
+                }
+            }
         }
+        console.log(`Done | Downloaded: ${downloaded} | Errors: ${errors} | Skipped: ${skipped}`);
     }
 
     public async downloadImage(imageUrl: string, targetFileName: string): Promise<void> {
 
         try {
-            const response = await fetch(imageUrl);
+            // TODO add cookie for livejournal requests
+            // TODO handle code 412 errors, e.g. http://pics.livejournal.com/lichdog/pic/0007a750/
+            const response = await fetch(imageUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:146.0) Gecko/20100101 Firefox/146.0',
+                    //'Cookie': `adtech_uid=737ce3f8-adbf-488c-b13a-c90754509d9c%3Alivejournal.com; addruid=f1U7P41im2y74qP98q0qF3X10I; vpuid=1745539705.208-7222792962109029; luid=URNKAGlXC6YkvgBKKp89AgB=; ljuniq=qCcskVor0SpJ2DP:1767312295:pgstats0; ab_d=1; bltsr=1; ljmastersession=v2:u12170000:s163:ahubVPFa7nY:g0d0998d55fc1d2b0a5f68f41f4ed9206c4dd76fe//1; ljloggedin=v2:u12170000:s163:t1767351809:gbe93aa6a52644505d9c9f3256300dbc3b6bb69e0; BMLschemepref=horizon; langpref=en_LJ/1767351809; ljsession=v1:u12170000:s163:t1767351600:gcf86e253afbbfcebbbdcbfd51ca8e6657e7b3e5f//1; prop_friendsfeed_tour=%7B%22three_posts_tour%22%3A0%2C%22rss%22%3A0%2C%22newYear26PromoBanner%22%3A%7B%22wasClosedByUser%22%3Afalse%2C%22linkWasClicked%22%3Afalse%2C%22timesSeen%22%3A3%7D%7D; prop_password_change_refusal=1767380984; lj_sale_adblock=true`
+                },
+            });
 
             if (!response.ok) {
-                //console.error(`  Failed to download image. HTTP status: ${response.status}`);
-                return;
+                if (response.status == 412) {
+                    appendFileSync("412images.txt", imageUrl + "\n");
+                }
+                if (response.status == 403) {
+                    appendFileSync("403images.txt", imageUrl + "\n");
+                }
+                if (response.status == 404) {
+                    appendFileSync("404images.txt", imageUrl + "\n");
+                }
+                throw new Error(`Failed to download image. HTTP status: ${response.status}`);
             }
+
 
             const contentType = response.headers.get("content-type");
 
             if (!contentType || !contentType.startsWith("image/")) {
-                //console.error(`  Invalid MIME type: ${contentType}`);
-                return;
+                throw new Error(`Invalid MIME type: ${contentType}`);
             }
 
             if (!response.body) {
-                //console.error("  Response has no body.");
-                return;
+                throw new Error("Response has no body.");
             }
 
             const fileStream = createWriteStream(targetFileName);
 
             // Convert Web ReadableStream to Node.js Readable
-            const nodeStream = Readable.fromWeb(response.body as any);
+            //const nodeStream = Readable.fromWeb(response.body as any);
 
-            await pipeline(nodeStream, fileStream);
-            console.log(`  SUCCESS`);
-            await sleepMs(500);
+            await pipeline(response.body, fileStream);
+            //console.log(`  SUCCESS`);
         } catch (error: any) {
-            //console.error("Error downloading image:", error.message);
+            throw error;
         }
     }
 
