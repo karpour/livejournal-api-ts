@@ -83,7 +83,7 @@ export default class LJDumper {
     }
 
     public async getExportEvents(): Promise<LiveJournalExportEvent[]> {
-        const yearMonthGenerator = createYearMonthGenerator(new Date("2006-10-01"), new Date());
+        const yearMonthGenerator = createYearMonthGenerator(new Date("2001-10-01"), new Date());
         mkdirSync(this.EXPORT_EVENTS_CSV_DIR, { recursive: true });
         if (existsSync(path.join(this.EXPORT_EVENTS_CSV_DIR, ".done"))) return this.readExportEvents();
 
@@ -214,6 +214,10 @@ export default class LJDumper {
     public async getMissingEvents(e: LiveJournalEvent[], lowestItem: number = 10000000, journal?: string): Promise<LiveJournalEvent[]> {
         const ids = e.map(e => e.itemid).sort((a, b) => (a - b));
         const missingIds: number[] = [];
+        
+        for (let i = 1; i < ids[0]; i++) {
+            missingIds.push(i);
+        }
         for (let i = 0; i < ids.length; i++) {
             //console.log(ids[i]);
             if (ids[i] + 1 !== ids[i + 1]) {
@@ -225,6 +229,7 @@ export default class LJDumper {
                 //console.log(ids[i + 1]);
             }
         }
+        console.log(`${missingIds.length} missing ids`);
         const missingIdChunks: number[][] = [];
         const chunkSize = 32;
         for (let i = 0; i < missingIds.length; i += chunkSize) {
@@ -310,7 +315,7 @@ export default class LJDumper {
                             writeFileSync(path.join(this.EVENTS_DIR, ".done"), "");
                             return [];
                         }
-                        break;
+                        //break;
                     }
                     firstCall = false;
                     skip += howmany;
@@ -369,6 +374,7 @@ export default class LJDumper {
                 //}
             }
         }*/
+
 
         await this.getMissingEvents(e, lowestItem, journal);
 
@@ -495,6 +501,7 @@ export default class LJDumper {
                 .filter(e => e !== undefined)
                 .flat())];
             //.filter(e => e.includes("livejournal.com"));
+            writeFileSync(path.join(this.IMAGES_DIR, ".done"), "");
 
             return this.getImages(imageUrls);
         }

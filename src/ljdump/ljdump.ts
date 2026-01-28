@@ -16,7 +16,7 @@ const ljApi = new LiveJournalApi({
     cookieFile: `~/.livejournal.cookie.${username}.json`,
     throttle: true,
     //verbose: true,
-    maxRequestsPerSecond: 1
+    maxRequestsPerSecond: 3
 });
 
 async function main() {
@@ -28,9 +28,9 @@ async function main() {
     header("Getting friend of");
     const friendOfs = await ljDumper.getFriendOf();
 
-    header("Getting friend groups");
+    //header("Getting friend groups");
 
-    header("Getting user profile");
+    //header("Getting user profile");
 
     header("Getting recent events");
     const events = await ljDumper.getEvents();
